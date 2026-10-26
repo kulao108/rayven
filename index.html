@@ -1,0 +1,2990 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XAUUSD CFD 智能共振決策終端 | SMC · BB · EMA · Slow Stoch · LinReg</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          },
+          colors: {
+            gold: {
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #070b14;
+      color: #f8fafc;
+      overflow-x: hidden;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    .glass-card {
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(51, 65, 85, 0.65);
+    }
+    .gold-glow {
+      box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.25);
+    }
+    input[type="range"] {
+      accent-color: #f59e0b;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased selection:bg-amber-500 selection:text-slate-950">
+
+  <!-- Top Navigation & Live Ticker Header -->
+  <header class="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/90 backdrop-blur-md">
+    <div class="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <!-- Brand -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-bold text-lg shadow-lg shadow-amber-500/20">
+          Au
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base sm:text-lg font-bold tracking-tight text-white">XAUUSD CFD 智能五維共振決策系統</h1>
+            <span class="px-2 py-0.5 text-[11px] font-mono font-semibold uppercase rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Pro Terminal</span>
+          </div>
+          <p class="text-xs text-slate-400">LuxAlgo SMC (Internal OB 5 · EQH/EQL 3 · FVG) · 5EMA (9/34/136/260/544) · BB (20,2) · SlowStoch (平滑K14/D3) · LinReg (100, ±2, Pearson R)</p>
+        </div>
+      </div>
+
+      <!-- Live Price & Quick Controls -->
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-3 bg-slate-900/90 border border-slate-800 rounded-xl px-3.5 py-1.5">
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span id="feedStatusDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+              <span id="feedStatusText" class="text-[10px] uppercase tracking-wider text-slate-400">XAU/USD 報價源: 模擬劇本</span>
+            </div>
+            <div class="flex items-baseline gap-2">
+              <span id="headerPrice" class="font-mono text-lg sm:text-xl font-bold text-amber-400">2,742.50</span>
+              <span id="headerChange" class="font-mono text-xs font-medium text-emerald-400">+14.20 (+0.52%)</span>
+            </div>
+          </div>
+          <div class="h-7 w-px bg-slate-800"></div>
+          <div class="text-xs">
+            <div class="text-slate-400 text-[10px]">ATR(14) 波動</div>
+            <div id="headerAtr" class="font-mono font-semibold text-slate-200">6.85 pts</div>
+          </div>
+          <div class="h-7 w-px bg-slate-800"></div>
+          <div class="text-xs">
+            <div class="text-amber-400/90 text-[10px] font-medium">Vantage 現價對齊</div>
+            <div class="flex items-center gap-1">
+              <input type="number" id="vantageTargetPriceInput" placeholder="輸入Vantage價" step="0.10" title="直接輸入你眼前 Vantage XAUUSD 的即時價格，系統將自動計算基差並 100% 鎖定對齊！" class="w-24 bg-slate-950 border border-amber-500/40 rounded px-1.5 py-0.5 font-mono text-[11px] text-amber-300 placeholder:text-slate-500">
+              <input type="number" id="brokerOffsetInput" value="0.00" step="0.10" title="Vantage 與基準現貨價差 (自動或手動微調)" class="w-14 bg-slate-950 border border-slate-700 rounded px-1 py-0.5 font-mono text-[10px] text-slate-300">
+            </div>
+          </div>
+        </div>
+
+        <!-- Mode Switcher Tabs -->
+        <nav class="flex flex-wrap items-center bg-slate-900 p-1 rounded-xl border border-slate-800" aria-label="主要功能切換">
+          <button id="tabBtnDashboard" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-amber-500 text-slate-950 font-semibold">
+            📊 圖表與共振分析
+          </button>
+          <button id="tabBtnPine" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white">
+            🌲 TradingView 腳本與真圖
+          </button>
+          <button id="tabBtnChecklist" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white">
+            🎯 實盤手動勾選器
+          </button>
+          <button id="tabBtnRiskCalc" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white">
+            🧮 CFD 倉位與風控
+          </button>
+          <button id="tabBtnGuide" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white">
+            📖 五維戰法手冊
+          </button>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace Container -->
+  <main class="flex-1 max-w-[1600px] w-full mx-auto px-4 py-4 space-y-4">
+
+    <!-- Top Action Bar: Timeframe, Scenario Presets, Live Tick Simulation, Custom Data -->
+    <section class="glass-card rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-medium text-slate-400 mr-1">時框 (Timeframe):</span>
+        <div class="inline-flex rounded-lg bg-slate-900 p-0.5 border border-slate-800" id="tfGroup">
+          <button type="button" data-tf="M5" class="tf-btn px-2.5 py-1 rounded-md text-xs font-mono font-medium text-slate-400 hover:text-slate-200">M5</button>
+          <button type="button" data-tf="M15" class="tf-btn px-2.5 py-1 rounded-md text-xs font-mono font-medium bg-amber-500/20 text-amber-300 border border-amber-500/40">M15</button>
+          <button type="button" data-tf="M30" class="tf-btn px-2.5 py-1 rounded-md text-xs font-mono font-medium text-slate-400 hover:text-slate-200">M30</button>
+          <button type="button" data-tf="H1" class="tf-btn px-2.5 py-1 rounded-md text-xs font-mono font-medium text-slate-400 hover:text-slate-200">H1</button>
+          <button type="button" data-tf="H4" class="tf-btn px-2.5 py-1 rounded-md text-xs font-mono font-medium text-slate-400 hover:text-slate-200">H4</button>
+          <button type="button" data-tf="D1" class="tf-btn px-2.5 py-1 rounded-md text-xs font-mono font-medium text-slate-400 hover:text-slate-200">D1</button>
+        </div>
+
+        <div class="h-5 w-px bg-slate-800 mx-1 hidden sm:block"></div>
+
+        <span class="text-xs font-medium text-slate-400 mr-1">行情結構劇本:</span>
+        <select id="scenarioSelect" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-500">
+          <option value="bull_pullback">🔥 多頭趨勢回踩 Bullish OB + 下軌超賣共振 (高勝率做多)</option>
+          <option value="bear_rejection">❄️ 空頭結構 CHoCH + 觸及回歸上軌 & Bearish OB (高勝率做空)</option>
+          <option value="range_mean_rev">⚖️ 區間震盪通道 + 布林帶收口均值回歸 (區間高拋低吸)</option>
+          <option value="breakout_squeeze">⚡ 布林帶擠壓突破 + BOS 結構延續 + 動能鈍化 (突破追單)</option>
+          <option value="liquidity_sweep">🪤 流動性獵殺 (Liquidity Sweep) 假跌破下軌反轉 (SMC 狙擊)</option>
+        </select>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="btnFetchLiveGold" type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 flex items-center gap-1.5 transition">
+          <span id="liveGoldIcon">🌐</span> <span id="liveGoldText">連線即時 XAUUSD 真實報價</span>
+        </button>
+        <button id="btnSimStep" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition">
+          <span>⏭️</span> 推進下一根 K 線
+        </button>
+        <button id="btnAutoPlay" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 transition">
+          <span id="autoPlayIcon">▶️</span> <span id="autoPlayText">模擬即時跳動</span>
+        </button>
+        <button id="btnOpenDataModal" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 flex items-center gap-1.5 transition">
+          <span>📥</span> 匯入 MT4/MT5/TV 報價
+        </button>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 1: DASHBOARD & CHART ==================== -->
+    <div id="viewDashboard" class="space-y-4">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+        <!-- Left / Center 8 Cols: Interactive Chart & Indicator Overlays -->
+        <div class="lg:col-span-8 space-y-4">
+          <div class="glass-card rounded-2xl p-4 flex flex-col">
+            <!-- Chart Header & Layer Toggles -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-800">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <h2 class="text-sm font-semibold text-white">XAUUSD 五維指標疊加圖表 (K線 + SMC + BB + EMA + LinReg + Slow Stoch)</h2>
+              </div>
+              <div class="flex flex-wrap items-center gap-1.5 text-xs">
+                <label class="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-900 border border-slate-800 cursor-pointer select-none">
+                  <input type="checkbox" id="toggleSMC" checked class="rounded accent-amber-500">
+                  <span class="text-amber-300 font-medium">LuxAlgo SMC (IntOB 5/EQH/FVG)</span>
+                </label>
+                <label class="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-900 border border-slate-800 cursor-pointer select-none">
+                  <input type="checkbox" id="toggleBB" checked class="rounded accent-cyan-400">
+                  <span class="text-cyan-300 font-medium">BB(20,2)</span>
+                </label>
+                <label class="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-900 border border-slate-800 cursor-pointer select-none">
+                  <input type="checkbox" id="toggleEMA" checked class="rounded accent-purple-400">
+                  <span class="text-purple-300 font-medium">5EMA(9/34/136/260/544)</span>
+                </label>
+                <label class="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-900 border border-slate-800 cursor-pointer select-none">
+                  <input type="checkbox" id="toggleLRC" checked class="rounded accent-rose-400">
+                  <span class="text-rose-300 font-medium">LinReg(100,±2,R)</span>
+                </label>
+                <label class="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-900 border border-slate-800 cursor-pointer select-none">
+                  <input type="checkbox" id="toggleTradeZones" checked class="rounded accent-emerald-400">
+                  <span class="text-emerald-300 font-medium">進場/SL/TP線</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Hover OHLCV & Active Indicator Readout Bar -->
+            <div id="chartCrosshairInfo" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-mono text-slate-300 mb-2 bg-slate-900/70 px-3 py-1.5 rounded-lg border border-slate-800/80">
+              <span>K線: <strong id="infoIndex" class="text-white">#Latest</strong></span>
+              <span>O: <strong id="infoOpen" class="text-slate-200">-</strong></span>
+              <span>H: <strong id="infoHigh" class="text-slate-200">-</strong></span>
+              <span>L: <strong id="infoLow" class="text-slate-200">-</strong></span>
+              <span>C: <strong id="infoClose" class="text-amber-400">-</strong></span>
+              <span class="text-cyan-400">BB: <span id="infoBB">-</span></span>
+              <span>5EMA(9/34/136/260/544): <span id="infoEMA">-</span></span>
+              <span class="text-rose-400">LinReg: <span id="infoLRC">-</span></span>
+              <span class="text-amber-300">Stoch(%K/%D): <span id="infoStoch">-</span></span>
+            </div>
+
+            <!-- Main Price Canvas -->
+            <div class="relative w-full h-[380px] sm:h-[430px] bg-white rounded-xl border border-slate-700 overflow-hidden shadow-inner">
+              <canvas id="mainChartCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+            </div>
+
+            <!-- Sub-chart: Slow Stochastic (14, 3, 3) -->
+            <div class="mt-2.5">
+              <div class="flex items-center justify-between text-[11px] text-slate-400 px-1 mb-1">
+                <span class="font-mono font-semibold text-amber-300">SlowStoch (平滑K=14, 平滑D=3) — %K (藍) / %D (橘) | 超買 &gt; 80 / 超賣 &lt; 20</span>
+                <span id="stochStatusBadge" class="font-mono text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-200">讀取中...</span>
+              </div>
+              <div class="relative w-full h-[130px] bg-white rounded-xl border border-slate-700 overflow-hidden shadow-inner">
+                <canvas id="stochChartCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+              </div>
+            </div>
+
+            <!-- Chart Legend -->
+            <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+              <div class="flex flex-wrap items-center gap-3">
+                <span class="inline-flex items-center gap-1"><span class="w-3 h-0.5 inline-block bg-[#fde047]"></span> EMA9(黃)</span>
+                <span class="inline-flex items-center gap-1"><span class="w-3 h-0.5 inline-block bg-[#ef4444]"></span> EMA34(紅)</span>
+                <span class="inline-flex items-center gap-1"><span class="w-3 h-0.5 inline-block bg-[#3b82f6]"></span> EMA136(藍)</span>
+                <span class="inline-flex items-center gap-1"><span class="w-3 h-0.5 inline-block bg-[#7c3aed]"></span> EMA260(紫)</span>
+                <span class="inline-flex items-center gap-1"><span class="w-3 h-1 inline-block bg-black border border-slate-400"></span> EMA544(黑)</span>
+                <span class="inline-flex items-center gap-1"><span class="w-3 h-2 inline-block bg-emerald-500/30 border border-emerald-400"></span> Bullish OB</span>
+                <span class="inline-flex items-center gap-1"><span class="w-3 h-2 inline-block bg-rose-500/30 border border-rose-400"></span> Bearish OB</span>
+                <span class="inline-flex items-center gap-1"><span class="w-3 h-0.5 inline-block bg-cyan-400"></span> BB通道</span>
+                <span class="inline-flex items-center gap-1"><span class="w-3 h-0.5 inline-block bg-rose-400"></span> LinReg通道</span>
+              </div>
+              <span class="text-slate-500">提示：滑鼠移至圖表可檢視歷史 K 線五維數值</span>
+            </div>
+          </div>
+
+          <!-- Parameter Tuning Panel (Collapsible or Clean Grid) -->
+          <div class="glass-card rounded-2xl p-4">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h3 class="text-sm font-semibold text-white">⚙️ 指標參數與權重自訂中心 (即時重算圖表與信號)</h3>
+                <p class="text-xs text-slate-400">調整周期與標準差倍數以貼合你的短線 (Scalping) 或波段 (Swing) 交易風格</p>
+              </div>
+              <button id="btnResetParams" type="button" class="px-2.5 py-1 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+                恢復預設值
+              </button>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+              <!-- SMC Config (LuxAlgo Exact Settings) -->
+              <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                <div class="font-semibold text-amber-400 mb-2 flex items-center justify-between">
+                  <span>1. LuxAlgo SMC</span>
+                  <span class="font-mono text-[11px]" id="weightSmcLabel">30%</span>
+                </div>
+                <div class="grid grid-cols-2 gap-1.5 mb-2">
+                  <div>
+                    <span class="text-[10px] text-slate-400">Internal OB</span>
+                    <input type="number" id="paramSmcSwing" value="5" min="3" max="15" class="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 font-mono text-white text-[11px]">
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-slate-400">EQH/EQL 確認</span>
+                    <input type="number" id="paramSmcEqBars" value="3" min="1" max="10" class="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 font-mono text-white text-[11px]">
+                  </div>
+                </div>
+                <label class="block text-slate-400 text-[11px] mb-1">權重佔比 (%)</label>
+                <input type="range" id="weightSmc" value="30" min="10" max="50" step="5" class="w-full">
+              </div>
+
+              <!-- 5EMA Config (9 / 34 / 136 / 260 / 544) -->
+              <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                <div class="font-semibold text-purple-400 mb-2 flex items-center justify-between">
+                  <span>2. 5EMA 均線組</span>
+                  <span class="font-mono text-[11px]" id="weightEmaLabel">20%</span>
+                </div>
+                <div class="grid grid-cols-5 gap-1 mb-2">
+                  <div>
+                    <span class="text-[9px] font-semibold text-[#fde047]">EMA1(黃)</span>
+                    <input type="number" id="paramEmaFast" value="9" min="2" max="50" class="w-full bg-slate-950 border border-[#fde047]/50 rounded px-1 py-1 font-mono text-white text-[10px]">
+                  </div>
+                  <div>
+                    <span class="text-[9px] font-semibold text-[#ef4444]">EMA2(紅)</span>
+                    <input type="number" id="paramEmaMid" value="34" min="10" max="100" class="w-full bg-slate-950 border border-[#ef4444]/50 rounded px-1 py-1 font-mono text-white text-[10px]">
+                  </div>
+                  <div>
+                    <span class="text-[9px] font-semibold text-[#3b82f6]">EMA3(藍)</span>
+                    <input type="number" id="paramEmaSlow" value="136" min="50" max="300" class="w-full bg-slate-950 border border-[#3b82f6]/50 rounded px-1 py-1 font-mono text-white text-[10px]">
+                  </div>
+                  <div>
+                    <span class="text-[9px] font-semibold text-[#8b5cf6]">EMA4(紫)</span>
+                    <input type="number" id="paramEma4" value="260" min="100" max="500" class="w-full bg-slate-950 border border-[#8b5cf6]/50 rounded px-1 py-1 font-mono text-white text-[10px]">
+                  </div>
+                  <div>
+                    <span class="text-[9px] font-semibold text-slate-400">EMA5(黑)</span>
+                    <input type="number" id="paramEma5" value="544" min="200" max="1000" class="w-full bg-slate-950 border border-slate-600 rounded px-1 py-1 font-mono text-white text-[10px]">
+                  </div>
+                </div>
+                <label class="block text-slate-400 text-[11px] mb-1">權重佔比 (%)</label>
+                <input type="range" id="weightEma" value="20" min="5" max="40" step="5" class="w-full">
+              </div>
+
+              <!-- BB Config -->
+              <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                <div class="font-semibold text-cyan-400 mb-2 flex items-center justify-between">
+                  <span>3. 布林通道 BB</span>
+                  <span class="font-mono text-[11px]" id="weightBbLabel">15%</span>
+                </div>
+                <div class="grid grid-cols-2 gap-1.5 mb-2">
+                  <div>
+                    <span class="text-[10px] text-slate-400">長度 (SMA)</span>
+                    <input type="number" id="paramBbPeriod" value="20" min="10" max="50" class="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 font-mono text-white">
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-slate-400">標準差</span>
+                    <input type="number" id="paramBbStd" value="2.0" min="1.0" max="3.5" step="0.1" class="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 font-mono text-white">
+                  </div>
+                </div>
+                <label class="block text-slate-400 text-[11px] mb-1">權重佔比 (%)</label>
+                <input type="range" id="weightBb" value="15" min="5" max="40" step="5" class="w-full">
+              </div>
+
+              <!-- Slow Stoch Config (平滑K=14, 平滑D=3) -->
+              <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                <div class="font-semibold text-amber-300 mb-2 flex items-center justify-between">
+                  <span>4. SlowStoch</span>
+                  <span class="font-mono text-[11px]" id="weightStochLabel">15%</span>
+                </div>
+                <div class="grid grid-cols-3 gap-1 mb-2">
+                  <div>
+                    <span class="text-[10px] text-slate-400">平滑K</span>
+                    <input type="number" id="paramStochK" value="14" min="3" max="30" class="w-full bg-slate-950 border border-slate-700 rounded px-1 py-1 font-mono text-white text-[11px]">
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-slate-400">平滑D</span>
+                    <input type="number" id="paramStochD" value="3" min="1" max="15" class="w-full bg-slate-950 border border-slate-700 rounded px-1 py-1 font-mono text-white text-[11px]">
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-slate-400">K內平滑</span>
+                    <input type="number" id="paramStochSmooth" value="3" min="1" max="10" class="w-full bg-slate-950 border border-slate-700 rounded px-1 py-1 font-mono text-white text-[11px]">
+                  </div>
+                </div>
+                <label class="block text-slate-400 text-[11px] mb-1">權重佔比 (%)</label>
+                <input type="range" id="weightStoch" value="15" min="5" max="40" step="5" class="w-full">
+              </div>
+
+              <!-- Linear Regression Config -->
+              <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                <div class="font-semibold text-rose-400 mb-2 flex items-center justify-between">
+                  <span>5. 線性回歸</span>
+                  <span class="font-mono text-[11px]" id="weightLrcLabel">20%</span>
+                </div>
+                <div class="grid grid-cols-2 gap-1.5 mb-2">
+                  <div>
+                    <span class="text-[10px] text-slate-400">回歸棒數</span>
+                    <input type="number" id="paramLrcPeriod" value="100" min="30" max="200" class="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 font-mono text-white">
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-slate-400">通道寬度</span>
+                    <input type="number" id="paramLrcDev" value="2.0" min="1.0" max="3.5" step="0.1" class="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 font-mono text-white">
+                  </div>
+                </div>
+                <label class="block text-slate-400 text-[11px] mb-1">權重佔比 (%)</label>
+                <input type="range" id="weightLrc" value="20" min="5" max="40" step="5" class="w-full">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right 4 Cols: Master Confluence Score, Action Plan & 5-Pillar Breakdown -->
+        <div class="lg:col-span-4 space-y-4">
+
+          <!-- Master Confluence Verdict Card -->
+          <div class="glass-card gold-glow rounded-2xl p-4 border border-amber-500/30">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-semibold uppercase tracking-wider text-amber-400">XAUUSD CFD 綜合決策信號</span>
+              <span id="confluenceTimeframeTag" class="px-2 py-0.5 text-[11px] font-mono rounded bg-slate-800 text-slate-300">M15 週期</span>
+            </div>
+
+            <!-- Main Signal Banner -->
+            <div id="masterSignalBox" class="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-between mb-3">
+              <div>
+                <div class="text-xs text-slate-300">當前共振方向建議</div>
+                <div id="masterSignalTitle" class="text-xl font-bold text-emerald-400 tracking-tight">強烈看漲 · 逢低做多 (BUY)</div>
+              </div>
+              <div class="text-right">
+                <div class="text-[10px] uppercase text-slate-400">綜合共振指數</div>
+                <div id="masterScoreText" class="font-mono text-2xl font-bold text-white">+74<span class="text-xs text-slate-400">/100</span></div>
+              </div>
+            </div>
+
+            <!-- Gauge Bar (-100 Bearish to +100 Bullish) -->
+            <div class="mb-4">
+              <div class="flex justify-between text-[10px] font-mono text-slate-400 mb-1">
+                <span class="text-rose-400">強空 (-100)</span>
+                <span>中立觀望 (0)</span>
+                <span class="text-emerald-400">強多 (+100)</span>
+              </div>
+              <div class="w-full h-2.5 rounded-full bg-slate-900 border border-slate-800 overflow-hidden relative">
+                <div class="absolute inset-y-0 left-1/2 w-0.5 bg-slate-600 z-10"></div>
+                <div id="scoreGaugeFill" class="h-full transition-all duration-300 bg-emerald-500" style="width: 37%; margin-left: 50%;"></div>
+              </div>
+            </div>
+
+            <!-- High-Win-Rate Sniper Prompt Banner -->
+            <div id="sniperPromptBox" class="mb-3 p-3 rounded-xl bg-amber-500/15 border border-amber-400/50 space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span id="sniperBadge" class="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-amber-400 text-slate-950">🎯 高勝率入場雷達</span>
+                <span id="sniperWinRateTag" class="text-[11px] font-mono font-semibold text-amber-300">預估勝率優勢: 計算中...</span>
+              </div>
+              <div id="sniperHeadline" class="text-xs sm:text-sm font-bold text-white leading-snug">正在掃描 OB+FVG 獨角獸重疊區與五維共振扳機...</div>
+              <div id="sniperTriggerDetail" class="text-[11px] text-slate-300 leading-relaxed">等待價格進入關鍵狙擊區並觸發 SlowStoch 金叉/死叉確認。</div>
+            </div>
+
+            <!-- Concrete CFD Execution Levels -->
+            <div class="bg-slate-900/90 rounded-xl p-3 border border-slate-800 space-y-2 text-xs">
+              <div class="flex items-center justify-between text-slate-400 pb-1.5 border-b border-slate-800">
+                <span>建議執行計畫 (根據 ATR 與結構支撐阻力)</span>
+                <button id="btnSyncToRiskCalc" type="button" class="text-amber-400 hover:text-amber-300 font-medium underline">帶入倉位計算器 →</button>
+              </div>
+              <div class="grid grid-cols-2 gap-2 pt-1">
+                <div class="bg-slate-950 p-2 rounded-lg border border-slate-800/80">
+                  <div class="text-[10px] text-slate-400">建議進場區間 (Entry)</div>
+                  <div id="planEntry" class="font-mono font-bold text-sm text-white">2740.80 - 2742.50</div>
+                </div>
+                <div class="bg-slate-950 p-2 rounded-lg border border-rose-500/30">
+                  <div class="text-[10px] text-rose-300">結構止損位 (Stop Loss)</div>
+                  <div id="planSL" class="font-mono font-bold text-sm text-rose-400">2733.40 (-9.1 pts)</div>
+                </div>
+                <div class="bg-slate-950 p-2 rounded-lg border border-emerald-500/30">
+                  <div class="text-[10px] text-emerald-300">第一止盈 (TP1 · 1.5R)</div>
+                  <div id="planTP1" class="font-mono font-bold text-sm text-emerald-400">2756.15 (+13.6 pts)</div>
+                </div>
+                <div class="bg-slate-950 p-2 rounded-lg border border-emerald-500/30">
+                  <div class="text-[10px] text-emerald-300">第二止盈 (TP2 · 2.8R)</div>
+                  <div id="planTP2" class="font-mono font-bold text-sm text-emerald-400">2768.00 (+25.5 pts)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5-Indicator Detailed Breakdown Cards -->
+          <div class="glass-card rounded-2xl p-4 space-y-2.5">
+            <h3 class="text-sm font-semibold text-white mb-1">🔍 五大核心指標即時診斷明細</h3>
+            <div id="indicatorCardsContainer" class="space-y-2.5">
+              <!-- Populated dynamically by JS -->
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB PINE: TRADINGVIEW LIVE WIDGET & PINE SCRIPT V5 ==================== -->
+    <div id="viewPine" class="hidden space-y-4">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+        <!-- Left 6 Cols: Price Accuracy Explanation + Live TradingView OANDA:XAUUSD Chart -->
+        <div class="lg:col-span-6 space-y-4">
+          <div class="glass-card rounded-2xl p-5 space-y-3 border border-emerald-500/30">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+              <h2 class="text-base font-bold text-white">🔍 黃金 CFD 報價準確度核實機制（如何確保 100% 無誤？）</h2>
+              <span class="px-2 py-0.5 text-[11px] font-mono rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Dual-Source Verification</span>
+            </div>
+            <div class="space-y-2 text-xs text-slate-300 leading-relaxed">
+              <p>
+                <strong class="text-amber-400">1. 為什麼不同平台的 XAUUSD 價格差 0.5 ~ 3 美金？</strong><br>
+                現貨黃金 CFD 並非單一集中交易所商品（不同於 COMEX 期貨 GC），各大流動性提供商（OANDA、IC Markets、Pepperstone、Exness、IG）會根據倫敦 LBMA 現貨報價加上各自的點差與隔夜拆借微調。
+              </p>
+              <p>
+                <strong class="text-emerald-400">2. 本系統如何取得即時金價並讓你校準？</strong><br>
+                • <strong>即時 API K線抓取</strong>：點擊上方綠色的「🌐 連線即時 XAUUSD 真實報價」，你的瀏覽器會直接向公開市場 API（Binance `PAXGUSDT` 1:1 實體倫敦金錨定歷史 K 線 + 國際貴金屬匯率 API）請求真實 M5/M15/M30/H1/H4/D1 K 線。<br>
+                • <strong>頂部「經紀商點差校準」輸入框</strong>：如果你看自己的 MT4/MT5 報價比公開現貨高 `$0.80`，只需在頂部輸入 `+0.80`，整張圖表的進場點、OB 區間、止損與止盈就會**精準對齊你手上的下單平台**，分毫不差！
+              </p>
+            </div>
+          </div>
+
+          <!-- Embedded Official TradingView Live XAUUSD Widget (Defaulting to VANTAGE:XAUUSD) -->
+          <div class="glass-card rounded-2xl p-4 space-y-2.5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="text-sm font-bold text-white">📺 TradingView 官方即時報價視窗 (預設鎖定 <span class="text-amber-400 font-mono">VANTAGE:XAUUSD</span>)</h3>
+                <p class="text-[11px] text-slate-400">直接嵌入 TradingView 上的 Vantage 經紀商即時 XAUUSD 報價流</p>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <select id="tvBrokerSymbolSelect" class="bg-slate-900 border border-slate-700 text-amber-300 font-mono text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-amber-500">
+                  <option value="VANTAGE:XAUUSD" selected>VANTAGE:XAUUSD (Vantage 官方源)</option>
+                  <option value="OANDA:XAUUSD">OANDA:XAUUSD (OANDA 備用源)</option>
+                  <option value="FOREXCOM:XAUUSD">FOREXCOM:XAUUSD (嘉盛備用源)</option>
+                  <option value="PEPPERSTONE:XAUUSD">PEPPERSTONE:XAUUSD (激石備用源)</option>
+                </select>
+                <button id="btnLoadTvWidget" type="button" class="px-3 py-1 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 transition">
+                  🔄 載入 / 重新整理官方即時圖
+                </button>
+              </div>
+            </div>
+            <div id="tvWidgetContainer" class="w-full h-[420px] rounded-xl overflow-hidden border border-slate-700 bg-white flex items-center justify-center">
+              <div class="text-center p-6 space-y-3">
+                <div class="text-amber-400 text-sm font-semibold">點擊右上角「🔄 載入 / 重新整理官方即時圖」即可在頁面內直接開啟 TradingView <span class="font-mono">VANTAGE:XAUUSD</span> 即時圖表</div>
+                <p class="text-xs text-slate-400">（如遇部分地區網路對特定經紀商代碼限制，亦可於下拉選單切換備用源，或直接將右側五維合一 Pine Script 貼入你的 TradingView VANTAGE:XAUUSD 圖表中！）</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right 6 Cols: Complete Copy-Pasteable Pine Script v5 Indicator -->
+        <div class="lg:col-span-6 space-y-4">
+          <div class="glass-card gold-glow rounded-2xl p-5 border border-amber-500/30 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+              <div>
+                <h2 class="text-base font-bold text-white">🌲 專屬 TradingView Pine Script v5 五合一指標原始碼</h2>
+                <p class="text-xs text-slate-400">一鍵複製貼上到 TradingView 底部「Pine 編輯器 (Pine Editor)」，直接在你的實盤圖表畫出 SMC + BB + EMA + 線性回歸 + Slow Stoch 共振買賣標籤與警報！</p>
+              </div>
+              <button id="btnCopyPineScript" type="button" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20 transition flex items-center gap-1.5">
+                <span id="copyPineIcon">📋</span> <span id="copyPineText">一鍵複製 Pine Script 代碼</span>
+              </button>
+            </div>
+
+            <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-1">
+              <div class="font-semibold text-amber-300">📌 如何在 TradingView 安裝使用（只需 15 秒）：</div>
+              <ol class="list-decimal list-inside space-y-0.5 text-[11px] text-slate-400">
+                <li>打開你的 TradingView XAUUSD 圖表（這樣就 100% 是你指定經紀商的即時報價）。</li>
+                <li>點擊畫面底部的 <strong>「Pine 編輯器 (Pine Editor)」</strong>，清空原本內容，貼上下方代碼。</li>
+                <li>點擊右上角 <strong>「加入圖表 (Add to chart)」</strong>，圖表右上角就會出現即時五維共振儀表板與自動 BUY/SELL 訊號！</li>
+              </ol>
+            </div>
+
+            <div class="relative">
+              <pre id="pineScriptCodeBlock" class="w-full h-[430px] overflow-auto bg-slate-950 border border-slate-800 rounded-xl p-3.5 font-mono text-[11px] text-emerald-300 leading-relaxed select-all">//@version=5
+indicator("XAUUSD CFD 五維共振決策系統 [SMC + BB + EMA + SlowStoch + LinReg]", shorttitle="XAU_5D_Confluence", overlay=true, max_boxes_count=50, max_lines_count=50)
+
+// ==================== 1. 參數設定 ====================
+grp_ema = "1. 5EMA 均線參數 (你的專屬設定: 9 / 34 / 136 / 260 / 544)"
+ema1Len = input.int(9,   "EMA 1 (極短動能)", group=grp_ema)
+ema2Len = input.int(34,  "EMA 2 (短期波段)", group=grp_ema)
+ema3Len = input.int(136, "EMA 3 (中期趨勢 · 4x34)", group=grp_ema)
+ema4Len = input.int(260, "EMA 4 (牛熊分界線)", group=grp_ema)
+ema5Len = input.int(544, "EMA 5 (長線大週期 · 4x136)", group=grp_ema)
+
+grp_bb = "2. Bollinger Bands 布林通道"
+bbLen  = input.int(20, "BB 周期", group=grp_bb)
+bbMult = input.float(2.0, "BB 標準差倍數", step=0.1, group=grp_bb)
+
+grp_lrc = "3. Linear Regression 線性回歸通道"
+lrcLen  = input.int(100, "線性回歸長度 (你的專屬設定: 100)", minval=20, maxval=300, group=grp_lrc)
+lrcMult = input.float(2.0, "回歸通道標準差倍數", step=0.1, group=grp_lrc)
+
+grp_stoch = "4. Slow Stochastic 慢速隨機指標"
+stochK = input.int(14, "Stoch %K 周期", group=grp_stoch)
+stochSmooth = input.int(3, "Stoch %K 平滑", group=grp_stoch)
+stochD = input.int(3, "Stoch %D 平滑", group=grp_stoch)
+
+grp_smc = "5. SMC 聰明錢結構 (BOS / OB / FVG)"
+swingLen = input.int(5, "Swing 高低點擺動周期", minval=3, maxval=20, group=grp_smc)
+showFVG  = input.bool(true, "顯示公允價值缺口 (FVG)", group=grp_smc)
+
+// ==================== 2. 指標核心運算 ====================
+// (A) 5EMA (9 / 34 / 136 / 260 / 544)
+emaFast = ta.ema(close, ema1Len)
+emaMid  = ta.ema(close, ema2Len)
+emaSlow = ta.ema(close, ema3Len)
+ema4    = ta.ema(close, ema4Len)
+ema5    = ta.ema(close, ema5Len)
+
+plot(emaFast, "EMA 9 (黃)",   color=color.new(#facc15, 0), linewidth=2)
+plot(emaMid,  "EMA 34 (紅)",  color=color.new(#ef4444, 0), linewidth=2)
+plot(emaSlow, "EMA 136 (藍)", color=color.new(#3b82f6, 0), linewidth=2)
+plot(ema4,    "EMA 260 (紫)", color=color.new(#7c3aed, 0), linewidth=2)
+plot(ema5,    "EMA 544 (黑)", color=color.new(#000000, 0), linewidth=2)
+
+// (B) Bollinger Bands (20, 2)
+[bbMid, bbUpper, bbLower] = ta.bb(close, bbLen, bbMult)
+pBBU = plot(bbUpper, "BB Upper", color=color.new(#22d3ee, 40), linewidth=1)
+pBBL = plot(bbLower, "BB Lower", color=color.new(#22d3ee, 40), linewidth=1)
+fill(pBBU, pBBL, color=color.new(#22d3ee, 93), title="BB Fill")
+pctB = (bbUpper - bbLower) != 0 ? (close - bbLower) / (bbUpper - bbLower) : 0.5
+
+// (C) Slow Stochastic (14, 3, 3)
+rawK  = ta.stoch(close, high, low, stochK)
+slowK = ta.sma(rawK, stochSmooth)
+slowD = ta.sma(slowK, stochD)
+bullCross = ta.crossover(slowK, slowD) and slowK < 30
+bearCross = ta.crossunder(slowK, slowD) and slowK > 70
+
+// (D) TradingView 官方原版直線型 Linear Regression Channel (上升軌道 / 下降軌道)
+extendRight = input.bool(true, "向右延伸回歸軌道線 (Extend Right)", group=grp_lrc)
+linRegEnd   = ta.linreg(close, lrcLen, 0)
+linRegStart = ta.linreg(close, lrcLen, lrcLen - 1)
+linRegSlope = (linRegEnd - linRegStart) / math.max(1, lrcLen - 1)
+
+// 計算官方最小平方殘差標準差 (Residual StdDev) 與皮爾森相關係數 R
+float sumResSq = 0.0
+for i = 0 to lrcLen - 1
+    fittedVal = linRegEnd - linRegSlope * i
+    diff = close[i] - fittedVal
+    sumResSq += diff * diff
+linRegDev = math.sqrt(sumResSq / lrcLen)
+zScore    = linRegDev != 0 ? (close - linRegEnd) / linRegDev : 0.0
+pearsonR  = ta.correlation(close, bar_index, lrcLen)
+
+// 繪製 TradingView 官方直線軌道 (上藍填充 / 下紅填充 / 紅中軸 / 藍上下軌 / 向右延伸)
+var line lrcBaseLine  = na
+var line lrcUpperLine = na
+var line lrcLowerLine = na
+var linefill lrcUpFill = na
+var linefill lrcDnFill = na
+var label lrcRLabel   = na
+
+if barstate.islast
+    extMode = extendRight ? extend.right : extend.none
+    xStart  = bar_index - lrcLen + 1
+    xEnd    = bar_index
+    uStart  = linRegStart + linRegDev * lrcMult
+    uEnd    = linRegEnd   + linRegDev * lrcMult
+    dStart  = linRegStart - linRegDev * lrcMult
+    dEnd    = linRegEnd   - linRegDev * lrcMult
+
+    if na(lrcBaseLine)
+        lrcUpperLine := line.new(xStart, uStart, xEnd, uEnd, xloc.bar_index, extMode, color.new(#2962ff, 0), line.style_solid, 2)
+        lrcBaseLine  := line.new(xStart, linRegStart, xEnd, linRegEnd, xloc.bar_index, extMode, color.new(#ff5252, 0), line.style_solid, 1)
+        lrcLowerLine := line.new(xStart, dStart, xEnd, dEnd, xloc.bar_index, extMode, color.new(#2962ff, 0), line.style_solid, 2)
+        lrcUpFill    := linefill.new(lrcUpperLine, lrcBaseLine, color.new(#2962ff, 85))
+        lrcDnFill    := linefill.new(lrcBaseLine, lrcLowerLine, color.new(#ff5252, 85))
+        lrcRLabel    := label.new(xStart, dStart, str.tostring(pearsonR, "#.##########"), xloc.bar_index, yloc.price, color.new(color.white, 100), label.style_label_up, #2962ff, size.normal)
+    else
+        line.set_xy1(lrcUpperLine, xStart, uStart)
+        line.set_xy2(lrcUpperLine, xEnd, uEnd)
+        line.set_extend(lrcUpperLine, extMode)
+        line.set_xy1(lrcBaseLine, xStart, linRegStart)
+        line.set_xy2(lrcBaseLine, xEnd, linRegEnd)
+        line.set_extend(lrcBaseLine, extMode)
+        line.set_xy1(lrcLowerLine, xStart, dStart)
+        line.set_xy2(lrcLowerLine, xEnd, dEnd)
+        line.set_extend(lrcLowerLine, extMode)
+        label.set_xy(lrcRLabel, xStart, dStart)
+        label.set_text(lrcRLabel, str.tostring(pearsonR, "#.##########"))
+
+// (E) SMC 結構、溢價折價區與 FVG
+ph = ta.pivothigh(high, swingLen, swingLen)
+pl = ta.pivotlow(low, swingLen, swingLen)
+var float lastSH = na
+var float lastSL = na
+if not na(ph)
+    lastSH := ph
+if not na(pl)
+    lastSL := pl
+
+bullBOS = not na(lastSH) and ta.crossover(close, lastSH)
+bearBOS = not na(lastSL) and ta.crossunder(close, lastSL)
+
+rangeHigh = ta.highest(high, 60)
+rangeLow  = ta.lowest(low, 60)
+eqPct     = (rangeHigh - rangeLow) != 0 ? ((close - rangeLow) / (rangeHigh - rangeLow)) * 100 : 50.0
+
+// 標記 OB (機構訂單塊) 與 FVG (公允價值缺口)，並直接在長方形內顯示文字標籤區分
+showOB  = input.bool(true, "顯示機構訂單塊 (Order Blocks - OB)", group=grp_smc)
+atr14   = ta.atr(14)
+
+// 1. 偵測並繪製 Bullish OB (看漲訂單塊: 強勢突破前最後一根陰線) & Bearish OB (看跌訂單塊: 強勢跌破前最後一根陽線)
+isBullOB = showOB and close[2] < open[2] and close[1] > open[1] and (close - open[2]) > atr14 * 1.1 and low > low[2]
+isBearOB = showOB and close[2] > open[2] and close[1] < open[1] and (open[2] - close) > atr14 * 1.1 and high < high[2]
+
+if isBullOB
+    box.new(bar_index[2], math.max(open[2], close[2]), bar_index + 18, low[2], border_color=color.new(#059669, 25), bgcolor=color.new(#10b981, 82), text="Bullish OB (看漲訂單塊)", text_color=color.new(#065f46, 0), text_size=size.tiny, text_halign=text.align_left)
+if isBearOB
+    box.new(bar_index[2], high[2], bar_index + 18, math.min(open[2], close[2]), border_color=color.new(#e11d48, 25), bgcolor=color.new(#f43f5e, 82), text="Bearish OB (看跌訂單塊)", text_color=color.new(#881337, 0), text_size=size.tiny, text_halign=text.align_left)
+
+// 2. 偵測並繪製 FVG (公允價值缺口: 三根K線快速拉升/下殺留下的真空區)
+bullFVG = showFVG and low > high[2] and close[1] > open[1]
+bearFVG = showFVG and high < low[2] and close[1] < open[1]
+if bullFVG
+    box.new(bar_index[2], low, bar_index + 6, high[2], border_color=color.new(#10b981, 55), bgcolor=color.new(#10b981, 90), text="FVG", text_color=color.new(#047857, 15), text_size=size.tiny, text_halign=text.align_right)
+if bearFVG
+    box.new(bar_index[2], low[2], bar_index + 6, high, border_color=color.new(#f43f5e, 55), bgcolor=color.new(#f43f5e, 90), text="FVG", text_color=color.new(#be123c, 15), text_size=size.tiny, text_halign=text.align_right)
+
+// ==================== 3. 五維共振量化評分 (-100 ~ +100) ====================
+smcScore   = (close > nz(lastSH, close) ? 15 : close < nz(lastSL, close) ? -15 : 0) + (eqPct < 42 ? 15 : eqPct > 58 ? -15 : 0)
+emaScore   = (close > emaSlow and emaFast > emaMid and emaMid > emaSlow) ? 20 : (close < emaSlow and emaFast < emaMid and emaMid < emaSlow) ? -20 : (close > emaSlow ? 10 : -10)
+lrcScore   = (linRegSlope > 0 and zScore < -0.8) ? 20 : (linRegSlope < 0 and zScore > 0.8) ? -20 : (zScore < -1.5 ? 15 : zScore > 1.5 ? -15 : 0)
+bbScore    = pctB < 0.22 ? 15 : pctB > 0.78 ? -15 : (close > bbMid ? 5 : -5)
+stochScore = (slowK < 28 and slowK >= slowD) ? 15 : (slowK > 72 and slowK <= slowD) ? -15 : (slowK < 22 ? 10 : slowK > 78 ? -10 : 0)
+
+totalScore = smcScore + emaScore + lrcScore + bbScore + stochScore
+atrVal     = ta.atr(14)
+
+// 紀錄最近一個看漲與看跌 OB / FVG 區間，用於偵測「獨角獸 (Unicorn: OB+FVG 重疊)」高勝率狙擊位
+var float activeBullTop = na
+var float activeBullBot = na
+var float activeBearTop = na
+var float activeBearBot = na
+if isBullOB or bullFVG
+    activeBullTop := isBullOB ? math.max(open[2], close[2]) : low
+    activeBullBot := isBullOB ? low[2] : high[2]
+if isBearOB or bearFVG
+    activeBearTop := isBearOB ? high[2] : low[2]
+    activeBearBot := isBearOB ? math.min(open[2], close[2]) : high
+
+// 偵測「高勝率狙擊入場」：
+// 1. 五維強共振 (總分 >= 60 或 <= -60)
+// 2. 獨角獸順勢回踩狙擊 (順回歸軌道方向 + K線觸及 OB/FVG 區間收下影線/上影線 + SlowStoch 轉折，且總分 >= 35 或 <= -35)
+inBullZone = not na(activeBullTop) and low <= activeBullTop + atrVal * 0.25 and close >= activeBullBot
+inBearZone = not na(activeBearBot) and high >= activeBearBot - atrVal * 0.25 and close <= activeBearTop
+
+unicornLong  = linRegSlope >= 0 and inBullZone and close > open and (slowK > slowD or slowK < 35) and totalScore >= 30
+unicornShort = linRegSlope <= 0 and inBearZone and close < open and (slowK < slowD or slowK > 65) and totalScore <= -30
+
+rawLong  = (totalScore >= 60 and (bullCross or close > open)) or unicornLong
+rawShort = (totalScore <= -60 and (bearCross or close < open)) or unicornShort
+longSignal  = rawLong and not (rawLong[1] or rawLong[2] or rawLong[3])
+shortSignal = rawShort and not (rawShort[1] or rawShort[2] or rawShort[3])
+
+plotshape(longSignal,  title="🎯 高勝率做多入場", style=shape.labelup,   location=location.belowbar, color=color.new(#059669, 0), textcolor=color.white, text="🎯 高勝率BUY",  size=size.small)
+plotshape(shortSignal, title="🎯 高勝率做空入場", style=shape.labeldown, location=location.abovebar, color=color.new(#e11d48, 0), textcolor=color.white, text="🎯 高勝率SELL", size=size.small)
+
+// ==================== 4. 右上角即時五維診斷儀表板 (含高勝率入場建議) ====================
+var table panel = table.new(position.top_right, 2, 8, bgcolor=color.new(#0f172a, 8), border_color=color.new(#334155, 35), border_width=1)
+if barstate.islast
+    verdict = totalScore >= 60 ? "強烈做多 (STRONG BUY)" : totalScore >= 25 ? "偏多震盪 (BUY BIAS)" : totalScore <= -60 ? "強烈做空 (STRONG SELL)" : totalScore <= -25 ? "偏空承壓 (SELL BIAS)" : "區間觀望 (WAIT)"
+    vColor  = totalScore >= 25 ? #10b981 : totalScore <= -25 ? #f43f5e : #f59e0b
+    table.cell(panel, 0, 0, "XAUUSD 五維共振總分", text_color=color.white, text_size=size.small)
+    table.cell(panel, 1, 0, str.tostring(totalScore, "#") + " / 100 (" + verdict + ")", text_color=vColor, text_size=size.small)
+    table.cell(panel, 0, 1, "1. SMC 位階 (折價<42%)", text_color=color.gray, text_size=size.tiny)
+    table.cell(panel, 1, 1, str.tostring(eqPct, "#.0") + "% | 分數: " + str.tostring(smcScore), text_color=color.white, text_size=size.tiny)
+    table.cell(panel, 0, 2, "2. 5EMA (9/34/136/260/544)", text_color=color.gray, text_size=size.tiny)
+    table.cell(panel, 1, 2, str.tostring(emaSlow, "#.1") + " | 分數: " + str.tostring(emaScore), text_color=color.white, text_size=size.tiny)
+    table.cell(panel, 0, 3, "3. LinReg(100,±2) 皮爾森R", text_color=color.gray, text_size=size.tiny)
+    table.cell(panel, 1, 3, "R=" + str.tostring(pearsonR, "#.2") + " | " + str.tostring(zScore, "#.2") + "σ (" + str.tostring(lrcScore) + ")", text_color=color.white, text_size=size.tiny)
+    table.cell(panel, 0, 4, "4. 布林通道 (%B)", text_color=color.gray, text_size=size.tiny)
+    table.cell(panel, 1, 4, str.tostring(pctB * 100, "#.0") + "% | 分數: " + str.tostring(bbScore), text_color=color.white, text_size=size.tiny)
+    table.cell(panel, 0, 5, "5. Slow Stoch (%K/%D)", text_color=color.gray, text_size=size.tiny)
+    table.cell(panel, 1, 5, str.tostring(slowK, "#.1") + "/" + str.tostring(slowD, "#.1") + " | 分數: " + str.tostring(stochScore), text_color=color.white, text_size=size.tiny)
+
+    // 動態計算多空對應之精準 SL 與 TP
+    isBearSetup = totalScore < 0 or (totalScore == 0 and linRegSlope < 0)
+    slPrice = isBearSetup ? (close + atrVal * 1.35) : (close - atrVal * 1.35)
+    tpPrice = isBearSetup ? (close - atrVal * 2.10) : (close + atrVal * 2.10)
+    table.cell(panel, 0, 6, "ATR(14) 建議止損/止盈", text_color=color.gray, text_size=size.tiny)
+    table.cell(panel, 1, 6, (isBearSetup ? "[空] " : "[多] ") + "SL: " + str.tostring(slPrice, "#.1") + " / TP: " + str.tostring(tpPrice, "#.1"), text_color=#fbbf24, text_size=size.tiny)
+
+    // 第 7 行：🎯 高勝率建議入場提示 (直接告訴你現價入場或埋伏哪個價位)
+    string entryAdvice = ""
+    color adviceColor  = #fbbf24
+    if longSignal or totalScore >= 60
+        entryAdvice := "🟢 立即做多! 現價 " + str.tostring(close, "#.1") + " 觸發高勝率共振"
+        adviceColor := #10b981
+    else if shortSignal or totalScore <= -60
+        entryAdvice := "🔴 立即做空! 現價 " + str.tostring(close, "#.1") + " 觸發高勝率共振"
+        adviceColor := #f43f5e
+    else if linRegSlope < 0
+        ambushP = not na(activeBearBot) ? str.tostring(activeBearBot, "#.1") + "~" + str.tostring(activeBearTop, "#.1") : str.tostring(linRegEnd + linRegDev, "#.1")
+        entryAdvice := "⏳ 順勢等反彈紅框 " + ambushP + " 受阻做空"
+        adviceColor := #fda4af
+    else
+        ambushP = not na(activeBullTop) ? str.tostring(activeBullBot, "#.1") + "~" + str.tostring(activeBullTop, "#.1") : str.tostring(linRegEnd - linRegDev, "#.1")
+        entryAdvice := "⏳ 順勢等回踩綠框 " + ambushP + " 支撐做多"
+        adviceColor := #6ee7b7
+
+    table.cell(panel, 0, 7, "🎯 高勝率建議入場提示", text_color=color.white, text_size=size.tiny)
+    table.cell(panel, 1, 7, entryAdvice, text_color=adviceColor, text_size=size.tiny)
+
+alertcondition(longSignal,  title="🎯 XAUUSD 高勝率做多入場提示", message="XAUUSD 觸發 🎯 高勝率做多入場訊號 (五維共振 / 獨角獸模型)！")
+alertcondition(shortSignal, title="🎯 XAUUSD 高勝率做空入場提示", message="XAUUSD 觸發 🎯 高勝率做空入場訊號 (五維共振 / 獨角獸模型)！")</pre>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ==================== TAB 2: LIVE MANUAL CONFLUENCE CHECKLIST ==================== -->
+    <div id="viewChecklist" class="hidden space-y-4">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div class="lg:col-span-8 glass-card rounded-2xl p-5 space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+            <div>
+              <h2 class="text-base font-bold text-white">🎯 實盤看盤手動勾選決策表 (TradingView / MT4 / MT5 實戰對照)</h2>
+              <p class="text-xs text-slate-400">當你在看自己的交易軟體時，依序點選目前 XAUUSD 圖表符合的五大指標狀態，系統將即時計算共振勝率與交易建議</p>
+            </div>
+            <button id="btnResetChecklist" type="button" class="px-3 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">
+              清空重選
+            </button>
+          </div>
+
+          <!-- Manual Checklist Groups -->
+          <div class="space-y-4" id="manualChecklistForm">
+            <!-- 1. SMC -->
+            <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800">
+              <div class="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2.5">1. SMC 聰明錢結構 (Smart Money Concepts · 權重 30%)</div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                <label class="flex items-start gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-emerald-500/50">
+                  <input type="radio" name="chk_smc_struct" value="15" checked class="mt-0.5 accent-emerald-500">
+                  <span><strong class="text-emerald-400">看漲 BOS / CHoCH</strong><br><span class="text-slate-400 text-[11px]">突破前高結構，低點墊高 (HH/HL)</span></span>
+                </label>
+                <label class="flex items-start gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-600">
+                  <input type="radio" name="chk_smc_struct" value="0" class="mt-0.5 accent-amber-500">
+                  <span><strong class="text-slate-300">結構不明 / 盤整中</strong><br><span class="text-slate-400 text-[11px]">高低點無明確突破方向</span></span>
+                </label>
+                <label class="flex items-start gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-rose-500/50">
+                  <input type="radio" name="chk_smc_struct" value="-15" class="mt-0.5 accent-rose-500">
+                  <span><strong class="text-rose-400">看跌 BOS / CHoCH</strong><br><span class="text-slate-400 text-[11px]">跌破前低結構，高點降低 (LH/LL)</span></span>
+                </label>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs mt-2">
+                <label class="flex items-start gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-emerald-500/50">
+                  <input type="radio" name="chk_smc_zone" value="15" checked class="mt-0.5 accent-emerald-500">
+                  <span><strong class="text-emerald-400">回踩 Bullish OB / FVG 折價區</strong><br><span class="text-slate-400 text-[11px]">價格位於 50% 以下折價區且有看漲訂單塊支撐</span></span>
+                </label>
+                <label class="flex items-start gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-600">
+                  <input type="radio" name="chk_smc_zone" value="0" class="mt-0.5 accent-amber-500">
+                  <span><strong class="text-slate-300">位於中間均衡區 (Equilibrium)</strong><br><span class="text-slate-400 text-[11px]">未觸及關鍵 OB 或 FVG 缺口</span></span>
+                </label>
+                <label class="flex items-start gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-rose-500/50">
+                  <input type="radio" name="chk_smc_zone" value="-15" class="mt-0.5 accent-rose-500">
+                  <span><strong class="text-rose-400">觸及 Bearish OB / FVG 溢價區</strong><br><span class="text-slate-400 text-[11px]">位於 50% 以上溢價區且遇看跌機構訂單塊受阻</span></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 2. EMA -->
+            <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800">
+              <div class="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2.5">2. 5EMA 指數移動平均線組 (9 / 34 / 136 / 260 / 544 · 權重 20%)</div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                <label class="flex items-start gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-emerald-500/50">
+                  <input type="radio" name="chk_ema" value="20" checked class="mt-0.5 accent-emerald-500">
+                  <span><strong class="text-emerald-400">多頭排列 (9 &gt; 34 &gt; 136 &gt; 260 &gt; 544)</strong><br><span class="text-slate-400 text-[11px]">金價企穩 EMA136/260/544 長期均線之上，EMA9 &gt; EMA34 多頭發散</span></span>
+                </label>
+                <label class="flex items-start gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-600">
+                  <input type="radio" name="chk_ema" value="0" class="mt-0.5 accent-amber-500">
+                  <span><strong class="text-slate-300">均線糾結纏繞</strong><br><span class="text-slate-400 text-[11px]">EMA 9 / 34 / 136 反覆穿越糾結，方向未明</span></span>
+                </label>
+                <label class="flex items-start gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-rose-500/50">
+                  <input type="radio" name="chk_ema" value="-20" class="mt-0.5 accent-rose-500">
+                  <span><strong class="text-rose-400">空頭排列 (9 &lt; 34 &lt; 136 &lt; 260 &lt; 544)</strong><br><span class="text-slate-400 text-[11px]">金價受制於 EMA136/260/544 之下，EMA9 &lt; EMA34 空頭發散</span></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 3. Linear Regression Channel -->
+            <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800">
+              <div class="text-xs font-bold text-rose-400 uppercase tracking-wider mb-2.5">3. Linear Regression Channel 線性回歸通道 (權重 20%)</div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                <label class="flex items-start gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-emerald-500/50">
+                  <input type="radio" name="chk_lrc" value="20" checked class="mt-0.5 accent-emerald-500">
+                  <span><strong class="text-emerald-400">通道斜率向上 + 觸及下軌支撐</strong><br><span class="text-slate-400 text-[11px]">回歸線斜率為正，且價格回落至 -2SD 下軌附近</span></span>
+                </label>
+                <label class="flex items-start gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-600">
+                  <input type="radio" name="chk_lrc" value="0" class="mt-0.5 accent-amber-500">
+                  <span><strong class="text-slate-300">貼近通道中軸線運行</strong><br><span class="text-slate-400 text-[11px]">無極端偏離，處於統計均值附近</span></span>
+                </label>
+                <label class="flex items-start gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-rose-500/50">
+                  <input type="radio" name="chk_lrc" value="-20" class="mt-0.5 accent-rose-500">
+                  <span><strong class="text-rose-400">通道斜率向下 / 觸及 +2SD 上軌受阻</strong><br><span class="text-slate-400 text-[11px]">偏離均值過大，面臨均值回歸下修壓力</span></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 4. Bollinger Bands -->
+            <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800">
+              <div class="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-2.5">4. Bollinger Bands 布林通道 (20, 2 · 權重 15%)</div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                <label class="flex items-start gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-emerald-500/50">
+                  <input type="radio" name="chk_bb" value="15" checked class="mt-0.5 accent-emerald-500">
+                  <span><strong class="text-emerald-400">下軌刺穿收回 (Pinbar) 或中軌企穩向上</strong><br><span class="text-slate-400 text-[11px]">%B &lt; 0.15 後出現下影線拒絕，或帶量突破上軌</span></span>
+                </label>
+                <label class="flex items-start gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-600">
+                  <input type="radio" name="chk_bb" value="0" class="mt-0.5 accent-amber-500">
+                  <span><strong class="text-slate-300">布林帶窄幅擠壓 (Squeeze 待變盤)</strong><br><span class="text-slate-400 text-[11px]">帶寬極度收斂，等待實體 K 線突破方向</span></span>
+                </label>
+                <label class="flex items-start gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-rose-500/50">
+                  <input type="radio" name="chk_bb" value="-15" class="mt-0.5 accent-rose-500">
+                  <span><strong class="text-rose-400">上軌受阻回落或跌破中軌</strong><br><span class="text-slate-400 text-[11px]">%B &gt; 0.85 出現上影線吞沒，或跌破 20MA 中軸</span></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 5. Slow Stochastic -->
+            <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800">
+              <div class="text-xs font-bold text-amber-300 uppercase tracking-wider mb-2.5">5. SlowStoch 慢速隨機指標 (平滑K=14, 平滑D=3 · 權重 15%)</div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                <label class="flex items-start gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-emerald-500/50">
+                  <input type="radio" name="chk_stoch" value="15" checked class="mt-0.5 accent-emerald-500">
+                  <span><strong class="text-emerald-400">超賣區 (&lt;20) 黃金交叉 / 底背離</strong><br><span class="text-slate-400 text-[11px]">%K 由下往上穿過 %D，動能轉強</span></span>
+                </label>
+                <label class="flex items-start gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-600">
+                  <input type="radio" name="chk_stoch" value="0" class="mt-0.5 accent-amber-500">
+                  <span><strong class="text-slate-300">中軸 20~80 區間無明顯交叉</strong><br><span class="text-slate-400 text-[11px]">未處於極端動能轉折位置</span></span>
+                </label>
+                <label class="flex items-start gap-2 p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer hover:border-rose-500/50">
+                  <input type="radio" name="chk_stoch" value="-15" class="mt-0.5 accent-rose-500">
+                  <span><strong class="text-rose-400">超買區 (&gt;80) 死亡交叉 / 頂背離</strong><br><span class="text-slate-400 text-[11px]">%K 由上往下跌破 %D，買盤力竭</span></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right 4 Cols: Manual Checklist Result Card -->
+        <div class="lg:col-span-4 space-y-4">
+          <div class="glass-card gold-glow rounded-2xl p-5 border border-amber-500/30 sticky top-20">
+            <h3 class="text-sm font-bold text-amber-400 uppercase tracking-wider mb-3">📋 實盤手動勾選診斷結果</h3>
+            <div id="manualResultBanner" class="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-center mb-4">
+              <div class="text-xs text-slate-300 mb-1">手動共振總分</div>
+              <div id="manualTotalScore" class="font-mono text-4xl font-bold text-emerald-400 mb-1">+100</div>
+              <div id="manualVerdictText" class="text-base font-bold text-white">🌟 五維完美做多共振 (A+ 級別信號)</div>
+            </div>
+
+            <div class="space-y-2.5 text-xs bg-slate-900/90 p-3.5 rounded-xl border border-slate-800">
+              <div class="font-semibold text-white border-b border-slate-800 pb-1.5">執行紀律與風控建議：</div>
+              <p id="manualActionAdvice" class="text-slate-300 leading-relaxed">
+                目前 SMC 訂單塊、均線趨勢、線性回歸下軌、布林帶與 Slow Stoch 超賣金叉全面共振。建議以標準風險倉位（1%~1.5% 帳戶風險）進場佈局多單，止損設於 Bullish OB 下方 1.5~2 美金處。
+              </p>
+              <div class="pt-2 flex flex-col gap-1.5 text-[11px] text-slate-400">
+                <div>• <strong class="text-slate-200">A+ 級信號 (≥70分)：</strong>可執行標準倉位 (1.0x Risk)</div>
+                <div>• <strong class="text-slate-200">B 級信號 (40~69分)：</strong>建議減半倉位 (0.5x Risk) 等K線收線確認</div>
+                <div>• <strong class="text-slate-200">觀望區 (-39~+39分)：</strong>指標互相矛盾，嚴禁強行開倉</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 3: XAUUSD CFD POSITION & RISK CALCULATOR ==================== -->
+    <div id="viewRiskCalc" class="hidden space-y-4">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div class="lg:col-span-7 glass-card rounded-2xl p-5 space-y-4">
+          <div class="border-b border-slate-800 pb-3">
+            <h2 class="text-base font-bold text-white">🧮 XAUUSD CFD 專業倉位、手數、保證金與盈虧比計算器 (HKD 港幣本位)</h2>
+            <p class="text-xs text-slate-400">以港幣 (HKD) 帳戶資金精算最佳手數（1 標準手 = 100 盎司，金價每跳動 $1.00 USD = $100 USD ≈ HK$780，按聯繫匯率 1 USD = 7.80 HKD 換算）</p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-slate-300 font-medium">帳戶資金 (Account Balance HKD 港幣)</label>
+                <span id="calcBalanceUsdEquiv" class="text-[11px] font-mono text-amber-400">≈ $10,000.00 USD</span>
+              </div>
+              <input type="number" id="calcBalance" value="78000" min="500" step="1000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 font-mono text-sm text-white focus:border-amber-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-slate-300 font-medium mb-1">單筆最大承受風險 (%) <span id="calcRiskPctDisplay" class="text-amber-400 font-mono">1.0%</span></label>
+              <input type="range" id="calcRiskPct" value="1.0" min="0.25" max="5.0" step="0.25" class="w-full mt-2">
+              <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-0.5">
+                <span>0.25% (保守)</span>
+                <span>1.0% (標準)</span>
+                <span>2.0% (積極)</span>
+                <span>5.0% (高危)</span>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-slate-300 font-medium mb-1">交易方向 (Direction)</label>
+              <select id="calcDirection" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:border-amber-500 focus:outline-none">
+                <option value="BUY">🟢 做多 (BUY / Long XAUUSD)</option>
+                <option value="SELL">🔴 做空 (SELL / Short XAUUSD)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-slate-300 font-medium mb-1">CFD 帳戶槓桿 (Leverage)</label>
+              <select id="calcLeverage" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 font-mono text-sm text-white focus:border-amber-500 focus:outline-none">
+                <option value="20">1 : 20 (保守)</option>
+                <option value="100">1 : 100 (穩定標準)</option>
+                <option value="200">1 : 200</option>
+                <option value="500" selected>1 : 500 (Vantage 主流槓桿)</option>
+                <option value="1000">1 : 1000 (Vantage 最高槓桿)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-slate-300 font-medium mb-1">預計進場價格 (Entry Price)</label>
+              <input type="number" id="calcEntry" value="2742.50" step="0.1" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 font-mono text-sm text-amber-400 focus:border-amber-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-slate-300 font-medium mb-1">結構止損價格 (Stop Loss Price)</label>
+              <input type="number" id="calcSL" value="2733.40" step="0.1" class="w-full bg-slate-900 border border-rose-500/50 rounded-xl px-3 py-2 font-mono text-sm text-rose-400 focus:border-rose-500 focus:outline-none">
+            </div>
+
+            <div>
+              <label class="block text-slate-300 font-medium mb-1">目標止盈價格 (Take Profit Price)</label>
+              <input type="number" id="calcTP" value="2762.50" step="0.1" class="w-full bg-slate-900 border border-emerald-500/50 rounded-xl px-3 py-2 font-mono text-sm text-emerald-400 focus:border-emerald-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-slate-300 font-medium mb-1">Vantage 點差與手續費成本 (RAW ECN 約 0.12~0.18 / STP 約 0.25)</label>
+              <input type="number" id="calcSpread" value="0.15" min="0" max="2" step="0.01" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 font-mono text-sm text-slate-200 focus:border-amber-500 focus:outline-none">
+            </div>
+          </div>
+        </div>
+
+        <!-- Right 5 Cols: Calculated CFD Output -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="glass-card gold-glow rounded-2xl p-5 border border-amber-500/30 space-y-4">
+            <h3 class="text-sm font-bold text-amber-400 uppercase tracking-wider">⚡ XAUUSD CFD 精算結果</h3>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div class="bg-slate-900 p-3.5 rounded-xl border border-amber-500/40">
+                <div class="text-xs text-slate-400">建議開倉標準手數 (Lots)</div>
+                <div id="resLots" class="font-mono text-2xl sm:text-3xl font-bold text-amber-400 mt-1">0.11 Lots</div>
+                <div id="resOunces" class="text-[11px] font-mono text-slate-400 mt-0.5">合約規模: 11.0 盎司 (oz)</div>
+              </div>
+              <div class="bg-slate-900 p-3.5 rounded-xl border border-slate-800">
+                <div class="text-xs text-slate-400">最大風險金額 (Max Risk)</div>
+                <div id="resRiskUsd" class="font-mono text-2xl sm:text-3xl font-bold text-rose-400 mt-1">-$100.00</div>
+                <div id="resSlDist" class="text-[11px] font-mono text-slate-400 mt-0.5">止損距離: 9.10 USD (910 小點)</div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2.5 text-xs">
+              <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                <div class="text-[11px] text-slate-400">預估潛在獲利</div>
+                <div id="resRewardUsd" class="font-mono text-base font-bold text-emerald-400 mt-0.5">+$217.25</div>
+              </div>
+              <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                <div class="text-[11px] text-slate-400">實質風報比 (R:R)</div>
+                <div id="resRR" class="font-mono text-base font-bold text-white mt-0.5">1 : 2.17</div>
+              </div>
+              <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                <div class="text-[11px] text-slate-400">所需預付款保證金</div>
+                <div id="resMargin" class="font-mono text-base font-bold text-cyan-400 mt-0.5">$301.68</div>
+              </div>
+            </div>
+
+            <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 text-xs space-y-1.5">
+              <div class="flex justify-between">
+                <span class="text-slate-400">點差與滑點總成本預估：</span>
+                <span id="resSpreadCost" class="font-mono text-slate-200">$2.75 USD</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">保證金佔用帳戶比例：</span>
+                <span id="resMarginLevel" class="font-mono text-emerald-400">3.02% (安全充裕)</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">每 $1.00 金價波動損益：</span>
+                <span id="resPerDollar" class="font-mono text-amber-300">±$11.00 USD</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 4: STRATEGY PLAYBOOK ==================== -->
+    <div id="viewGuide" class="hidden space-y-4">
+      <div class="glass-card rounded-2xl p-6 space-y-5">
+        <div class="border-b border-slate-800 pb-3">
+          <h2 class="text-lg font-bold text-white">📖 XAUUSD 黃金 CFD 五維指標協同實戰手冊</h2>
+          <p class="text-xs text-slate-400 mt-1">結合機構訂單流 (SMC) 與統計量化通道 (LinReg + BB) 及動能確認 (EMA + Slow Stoch) 的完整交易框架</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs leading-relaxed">
+          <div class="bg-slate-900/90 p-4 rounded-xl border border-amber-500/30 space-y-2">
+            <div class="text-sm font-bold text-amber-400">1. SMC (Smart Money Concepts) — 定位機構腳印</div>
+            <p class="text-slate-300">黃金點差小、流動性極高，歐美盤開盤常出現「獵殺止損 (Liquidity Sweep)」。透過 <strong>BOS (結構突破)</strong> 確認大方向，等待價格回落至折價區的 <strong>Bullish Order Block (看漲訂單塊)</strong> 或填補 <strong>FVG (公允價值缺口)</strong>，避免在溢價區追高。</p>
+          </div>
+
+          <div class="bg-slate-900/90 p-4 rounded-xl border border-purple-500/30 space-y-2">
+            <div class="text-sm font-bold text-purple-400">2. 5EMA (9 / 34 / 136 / 260 / 544) — 四倍諧波周期均線系統</div>
+            <p class="text-slate-300">你的 <strong>5EMA (9, 34, 136, 260, 544)</strong> 採用經典的 ~4倍跨時框諧波結構（例如 M15 的 EMA136 相當於 H1 的 EMA34，EMA544 相當於 H4 的 EMA136）。當價格企穩 <strong>EMA 260 / 544</strong> 之上，且短期 <strong>EMA 9 上穿 EMA 34</strong> 時，形成跨時框多頭共振。</p>
+          </div>
+
+          <div class="bg-slate-900/90 p-4 rounded-xl border border-rose-500/30 space-y-2">
+            <div class="text-sm font-bold text-rose-400">3. Linear Regression Channel — 統計均值與斜率</div>
+            <p class="text-slate-300">線性回歸通道利用最小平方法計算過去 N 根 K 線的中軸趨勢線與 ±2 標準差邊界。<strong>通道斜率 (Slope)</strong> 決定趨勢方向，當價格觸及下軌 (-2SD) 且同時重合 SMC 的看漲訂單塊時，具備極高的統計反彈勝率。</p>
+          </div>
+
+          <div class="bg-slate-900/90 p-4 rounded-xl border border-cyan-500/30 space-y-2">
+            <div class="text-sm font-bold text-cyan-400">4. Bollinger Bands (20, 2) — 波動率收斂與極端刺穿</div>
+            <p class="text-slate-300">布林通道反映即時波動率變化。當布林帶下軌與線性回歸通道下軌發生「雙軌重疊」，且 K 線收出長下影線拒絕 (Pinbar) 時，代表短期拋壓衰竭；若布林帶極度收口 (Squeeze)，則預示倫敦/紐約盤即將爆發單邊突破。</p>
+          </div>
+
+          <div class="bg-slate-900/90 p-4 rounded-xl border border-amber-300/30 space-y-2">
+            <div class="text-sm font-bold text-amber-300">5. Slow Stochastic (14, 3, 3) — 精準進場扳機</div>
+            <p class="text-slate-300">即使價格進入 SMC 訂單塊與通道下軌，仍需等待動能轉折才扣扳機。當 Slow Stoch 進入 <strong>20 以下超賣區並出現 %K 上穿 %D 黃金交叉</strong>，即為右側確認進場點，有效防止「接飛刀」過早進場。</p>
+          </div>
+
+          <div class="bg-slate-900/90 p-4 rounded-xl border border-emerald-500/30 space-y-2">
+            <div class="text-sm font-bold text-emerald-400">6. 黃金 CFD 實戰黃金法則 (時段與風控)</div>
+            <p class="text-slate-300">最佳交易時段為 <strong>倫敦開盤 (15:00-18:00 GMT+8)</strong> 與 <strong>紐約重疊盤 (20:00-23:30 GMT+8)</strong>。重大數據（CPI、非農 NFP、FOMC）前後 15 分鐘點差擴大，應避免掛單並嚴格將單筆虧損控制在總資金 1%~1.5% 內。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Modal: Import Custom OHLC Data -->
+  <div id="dataModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass-card rounded-2xl max-w-xl w-full p-5 border border-slate-700 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-base font-bold text-white">📥 匯入自訂 XAUUSD K 線數據 (CSV / OHLC)</h3>
+        <button id="btnCloseDataModal" type="button" class="text-slate-400 hover:text-white text-sm">✕ 關閉</button>
+      </div>
+      <p class="text-xs text-slate-300 leading-relaxed">
+        你可以直接從 TradingView 或 MT4/MT5 匯出歷史 K 線 CSV，或貼上包含 <code class="text-amber-300">Open, High, Low, Close</code> 的數據（每行一根 K 線，逗號或空白分隔，最少 35 根 K 線），系統會自動重算所有五大指標與共振評分。
+      </p>
+      <textarea id="customCsvInput" rows="7" placeholder="範例格式 (Open,High,Low,Close)：&#10;2728.5, 2731.2, 2726.8, 2730.1&#10;2730.1, 2734.0, 2729.5, 2733.4&#10;..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 font-mono text-xs text-slate-200 focus:border-amber-500 focus:outline-none"></textarea>
+      <div id="customDataError" class="text-xs text-rose-400 hidden"></div>
+      <div class="flex items-center justify-between pt-2">
+        <button id="btnFillSampleCsv" type="button" class="px-3 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300">
+          填入範例數據 (60根K線)
+        </button>
+        <div class="flex items-center gap-2">
+          <button id="btnCancelDataModal" type="button" class="px-3 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300">取消</button>
+          <button id="btnApplyCustomCsv" type="button" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950">套用並重算指標</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Logic -->
+  <script>
+    (function() {
+      // ==================== STATE & CONFIG ====================
+      const state = {
+        timeframe: 'M15',
+        scenario: 'bull_pullback',
+        candles: [],
+        hoverIndex: null,
+        autoPlayTimer: null,
+        layers: {
+          smc: true,
+          bb: true,
+          ema: true,
+          lrc: true,
+          tradeZones: true
+        },
+        params: {
+          smcSwing: 5,
+          smcEqBars: 3,
+          emaFast: 9,
+          emaMid: 34,
+          emaSlow: 136,
+          ema4: 260,
+          ema5: 544,
+          bbPeriod: 20,
+          bbStd: 2.0,
+          stochK: 14,
+          stochSmooth: 3,
+          stochD: 3,
+          lrcPeriod: 100,
+          lrcDev: 2.0
+        },
+        weights: {
+          smc: 30,
+          ema: 20,
+          bb: 15,
+          stoch: 15,
+          lrc: 20
+        },
+        isLiveFeed: false,
+        liveTimer: null,
+        brokerOffset: 0.0,
+        rawBaseCandles: [],
+        computed: null
+      };
+
+      // Deterministic PRNG for realistic repeatable scenarios
+      function createRng(seed) {
+        let s = seed % 2147483647;
+        if (s <= 0) s += 2147483646;
+        return function() {
+          s = (s * 16807) % 2147483647;
+          return (s - 1) / 2147483646;
+        };
+      }
+
+      // Generate realistic 220 candles of XAUUSD for any scenario & timeframe
+      function generateScenarioCandles(scenario, tf) {
+        const tfMultMap = { M5: 0.6, M15: 1.0, M30: 1.5, H1: 2.2, H4: 4.5, D1: 9.0 };
+        const tfMultiplier = tfMultMap[tf] || 1.0;
+        const tfSeedOffset = { M5: 11, M15: 23, M30: 37, H1: 53, H4: 71, D1: 97 };
+        const seedMap = {
+          bull_pullback: 1042,
+          bear_rejection: 2089,
+          range_mean_rev: 3091,
+          breakout_squeeze: 4177,
+          liquidity_sweep: 5523
+        };
+        const rng = createRng((seedMap[scenario] || 1001) + (tfSeedOffset[tf] || 23) * 37);
+        const total = 560;
+        const candles = [];
+        let price = 2695.0;
+
+        for (let i = 0; i < total; i++) {
+          let drift = 0;
+          let vol = 2.4 * tfMultiplier;
+
+          if (scenario === 'bull_pullback') {
+            // Strong uptrend from 0..190, then orderly pullback into Bullish OB & Lower LinReg/BB at 190..217, then bounce at 218..219
+            if (i < 480) drift = 0.32 * tfMultiplier;
+            else if (i < 532) drift = 0.48 * tfMultiplier;
+            else if (i < 556) drift = -0.58 * tfMultiplier;
+            else drift = 0.95 * tfMultiplier;
+          } else if (scenario === 'bear_rejection') {
+            // Downtrend, then corrective rally up into Bearish OB + Upper LinReg/BB + Overbought Stoch
+            if (i < 480) drift = -0.28 * tfMultiplier;
+            else if (i < 528) drift = -0.45 * tfMultiplier;
+            else if (i < 556) drift = 0.56 * tfMultiplier;
+            else drift = -0.90 * tfMultiplier;
+          } else if (scenario === 'range_mean_rev') {
+            // Sine wave oscillation around 2725
+            drift = Math.cos(i / 9.5) * 0.85 * tfMultiplier;
+            vol = 1.9 * tfMultiplier;
+          } else if (scenario === 'breakout_squeeze') {
+            // Tight consolidation 160..212, then explosive bullish breakout
+            if (i < 500) drift = 0.18 * tfMultiplier;
+            else if (i < 552) {
+              drift = Math.sin(i / 3.0) * 0.15 * tfMultiplier;
+              vol = 0.85 * tfMultiplier;
+            } else {
+              drift = 1.65 * tfMultiplier;
+              vol = 3.2 * tfMultiplier;
+            }
+          } else if (scenario === 'liquidity_sweep') {
+            // Uptrend, range, sharp stop-hunt spike below lower band & OB at 214-216, strong pinbar recovery 217-219
+            if (i < 515) drift = 0.25 * tfMultiplier;
+            else if (i < 552) drift = -0.15 * tfMultiplier;
+            else if (i < 556) {
+              drift = -1.75 * tfMultiplier;
+              vol = 3.5 * tfMultiplier;
+            } else {
+              drift = 1.95 * tfMultiplier;
+              vol = 3.1 * tfMultiplier;
+            }
+          }
+
+          const noise = (rng() - 0.495) * vol;
+          const open = price;
+          let close = open + drift + noise;
+          let high = Math.max(open, close) + rng() * vol * 0.75;
+          let low = Math.min(open, close) - rng() * vol * 0.75;
+
+          // Inject signature candlestick patterns near the end of scenario
+          if ((scenario === 'bull_pullback' || scenario === 'liquidity_sweep') && i === total - 2) {
+            low = Math.min(open, close) - vol * 1.9; // Bullish hammer / pinbar sweep
+            close = open + vol * 0.65;
+          }
+          if (scenario === 'bear_rejection' && i === total - 2) {
+            high = Math.max(open, close) + vol * 1.9; // Bearish shooting star
+            close = open - vol * 0.65;
+          }
+
+          candles.push({
+            index: i,
+            open: Number(open.toFixed(2)),
+            high: Number(high.toFixed(2)),
+            low: Number(low.toFixed(2)),
+            close: Number(close.toFixed(2))
+          });
+          price = close;
+        }
+        return candles;
+      }
+
+      // ==================== INDICATOR MATH ENGINE ====================
+      function calcEMA(values, period) {
+        const result = new Array(values.length).fill(null);
+        const k = 2 / (period + 1);
+        let ema = values[0];
+        result[0] = ema;
+        for (let i = 1; i < values.length; i++) {
+          ema = values[i] * k + ema * (1 - k);
+          result[i] = ema;
+        }
+        return result;
+      }
+
+      function calcSMA(values, period) {
+        const out = new Array(values.length).fill(null);
+        let sum = 0;
+        for (let i = 0; i < values.length; i++) {
+          const v = values[i] ?? 0;
+          sum += v;
+          if (i >= period) sum -= (values[i - period] ?? 0);
+          if (i >= period - 1) out[i] = sum / period;
+          else out[i] = sum / (i + 1);
+        }
+        return out;
+      }
+
+      function calcBollingerBands(closes, period, stdMult) {
+        const middle = calcSMA(closes, period);
+        const upper = new Array(closes.length).fill(null);
+        const lower = new Array(closes.length).fill(null);
+        const bandwidth = new Array(closes.length).fill(0);
+        const pctB = new Array(closes.length).fill(0.5);
+
+        for (let i = 0; i < closes.length; i++) {
+          const start = Math.max(0, i - period + 1);
+          const slice = closes.slice(start, i + 1);
+          const mean = middle[i];
+          let variance = 0;
+          for (let j = 0; j < slice.length; j++) {
+            variance += Math.pow(slice[j] - mean, 2);
+          }
+          const sd = Math.sqrt(variance / slice.length);
+          upper[i] = mean + stdMult * sd;
+          lower[i] = mean - stdMult * sd;
+          bandwidth[i] = mean > 0 ? ((upper[i] - lower[i]) / mean) * 100 : 0;
+          const range = upper[i] - lower[i];
+          pctB[i] = range > 0 ? (closes[i] - lower[i]) / range : 0.5;
+        }
+        return { middle, upper, lower, bandwidth, pctB };
+      }
+
+      function calcSlowStochastic(candles, kPeriod, smoothK, dPeriod) {
+        const rawK = new Array(candles.length).fill(50);
+        for (let i = 0; i < candles.length; i++) {
+          const start = Math.max(0, i - kPeriod + 1);
+          let highest = -Infinity;
+          let lowest = Infinity;
+          for (let j = start; j <= i; j++) {
+            if (candles[j].high > highest) highest = candles[j].high;
+            if (candles[j].low < lowest) lowest = candles[j].low;
+          }
+          const denom = highest - lowest;
+          rawK[i] = denom > 0 ? ((candles[i].close - lowest) / denom) * 100 : 50;
+        }
+        const slowK = calcSMA(rawK, smoothK);
+        const slowD = calcSMA(slowK, dPeriod);
+        return { k: slowK, d: slowD };
+      }
+
+      function calcLinearRegressionChannel(closes, period, devMult) {
+        const n = Math.min(period, closes.length);
+        const startIdx = closes.length - n;
+        let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0, sumYY = 0;
+        for (let i = 0; i < n; i++) {
+          const y = closes[startIdx + i];
+          sumX += i;
+          sumY += y;
+          sumXY += i * y;
+          sumXX += i * i;
+          sumYY += y * y;
+        }
+        const denomX = n * sumXX - sumX * sumX;
+        const denomY = n * sumYY - sumY * sumY;
+        const slope = denomX !== 0 ? (n * sumXY - sumX * sumY) / denomX : 0;
+        const intercept = (sumY - slope * sumX) / n;
+
+        // Pearson Correlation Coefficient R (皮爾森相關係數)
+        const rDenom = Math.sqrt(Math.max(0, denomX * denomY));
+        const pearsonR = rDenom > 0 ? (n * sumXY - sumX * sumY) / rDenom : 0;
+
+        let sumResSq = 0;
+        for (let i = 0; i < n; i++) {
+          const y = closes[startIdx + i];
+          const fitted = intercept + slope * i;
+          sumResSq += Math.pow(y - fitted, 2);
+        }
+        const stdDev = Math.sqrt(sumResSq / n);
+
+        const midLine = new Array(closes.length).fill(null);
+        const upperLine = new Array(closes.length).fill(null);
+        const lowerLine = new Array(closes.length).fill(null);
+
+        for (let i = 0; i < n; i++) {
+          const idx = startIdx + i;
+          const m = intercept + slope * i;
+          midLine[idx] = m;
+          upperLine[idx] = m + devMult * stdDev;
+          lowerLine[idx] = m - devMult * stdDev;
+        }
+
+        const lastClose = closes[closes.length - 1];
+        const lastMid = midLine[closes.length - 1];
+        const zScore = stdDev > 0 ? (lastClose - lastMid) / stdDev : 0;
+
+        return {
+          startIdx,
+          slope,
+          stdDev,
+          pearsonR,
+          zScore,
+          midLine,
+          upperLine,
+          lowerLine
+        };
+      }
+
+      function calcSMC(candles, swingLen) {
+        const n = candles.length;
+        const swingHighs = [];
+        const swingLows = [];
+
+        for (let i = swingLen; i < n - swingLen; i++) {
+          let isHigh = true;
+          let isLow = true;
+          for (let j = i - swingLen; j <= i + swingLen; j++) {
+            if (j === i) continue;
+            if (candles[j].high >= candles[i].high) isHigh = false;
+            if (candles[j].low <= candles[i].low) isLow = false;
+          }
+          if (isHigh) swingHighs.push({ index: i, price: candles[i].high });
+          if (isLow) swingLows.push({ index: i, price: candles[i].low });
+        }
+
+        // Detect Order Blocks (Bullish OB: last bearish candle before strong upward displacement)
+        const orderBlocks = [];
+        for (let i = Math.max(20, n - 95); i < n - 3; i++) {
+          const c = candles[i];
+          const next1 = candles[i + 1];
+          const next2 = candles[i + 2];
+          const body = Math.abs(c.close - c.open) || 0.5;
+          // Bullish displacement
+          if (c.close < c.open && next1.close > next1.open && (next2.close - c.open) > body * 2.2) {
+            // Check if mitigated (broken below)
+            let broken = false;
+            for (let k = i + 3; k < n; k++) {
+              if (candles[k].close < c.low) { broken = true; break; }
+            }
+            if (!broken) {
+              orderBlocks.push({
+                type: 'BULL',
+                index: i,
+                top: Math.max(c.open, c.close),
+                bottom: c.low
+              });
+            }
+          }
+          // Bearish displacement
+          if (c.close > c.open && next1.close < next1.open && (c.open - next2.close) > body * 2.2) {
+            let broken = false;
+            for (let k = i + 3; k < n; k++) {
+              if (candles[k].close > c.high) { broken = true; break; }
+            }
+            if (!broken) {
+              orderBlocks.push({
+                type: 'BEAR',
+                index: i,
+                top: c.high,
+                bottom: Math.min(c.open, c.close)
+              });
+            }
+          }
+        }
+
+        // Detect recent Fair Value Gaps (FVG)
+        const fvgs = [];
+        for (let i = Math.max(20, n - 70); i < n - 1; i++) {
+          const cPrev = candles[i - 1];
+          const cNext = candles[i + 1];
+          if (cNext.low > cPrev.high + 0.8) {
+            // Bullish FVG
+            fvgs.push({ type: 'BULL', index: i, top: cNext.low, bottom: cPrev.high });
+          } else if (cNext.high < cPrev.low - 0.8) {
+            // Bearish FVG
+            fvgs.push({ type: 'BEAR', index: i, top: cPrev.low, bottom: cNext.high });
+          }
+        }
+
+        // Range Premium / Discount over last 60 bars
+        const lookback = candles.slice(Math.max(0, n - 60));
+        const rangeHigh = Math.max(...lookback.map(c => c.high));
+        const rangeLow = Math.min(...lookback.map(c => c.low));
+        const lastClose = candles[n - 1].close;
+        const eqPct = rangeHigh > rangeLow ? ((lastClose - rangeLow) / (rangeHigh - rangeLow)) * 100 : 50;
+
+        // Latest Structure BOS / CHoCH
+        const lastSH = swingHighs[swingHighs.length - 1] || { index: n - 20, price: rangeHigh };
+        const prevSH = swingHighs[swingHighs.length - 2] || lastSH;
+        const lastSL = swingLows[swingLows.length - 1] || { index: n - 15, price: rangeLow };
+        const prevSL = swingLows[swingLows.length - 2] || lastSL;
+
+        let structureBias = 'NEUTRAL';
+        let structureLabel = '區間震盪 (Consolidation)';
+        if (lastClose > lastSH.price || (lastSH.price > prevSH.price && lastSL.price > prevSL.price)) {
+          structureBias = 'BULL';
+          structureLabel = lastClose > lastSH.price ? 'Bullish BOS (向上結構突破)' : 'HH + HL 多頭結構延續';
+        } else if (lastClose < lastSL.price || (lastSH.price < prevSH.price && lastSL.price < prevSL.price)) {
+          structureBias = 'BEAR';
+          structureLabel = lastClose < lastSL.price ? 'Bearish BOS (向下結構跌破)' : 'LH + LL 空頭結構延續';
+        }
+
+        // Nearest Bullish & Bearish OBs
+        const bullOBs = orderBlocks.filter(o => o.type === 'BULL');
+        const bearOBs = orderBlocks.filter(o => o.type === 'BEAR');
+        const activeBullOB = bullOBs.length ? bullOBs[bullOBs.length - 1] : { index: n - 28, top: rangeLow + (rangeHigh - rangeLow) * 0.22, bottom: rangeLow + (rangeHigh - rangeLow) * 0.08 };
+        const activeBearOB = bearOBs.length ? bearOBs[bearOBs.length - 1] : { index: n - 24, top: rangeHigh - (rangeHigh - rangeLow) * 0.06, bottom: rangeHigh - (rangeHigh - rangeLow) * 0.20 };
+
+        // LuxAlgo Equal Highs / Equal Lows (EQH / EQL: Bars Confirmation = 3, Threshold = 0.1 * ATR)
+        let eqhPrice = null;
+        let eqlPrice = null;
+        if (swingHighs.length >= 2) {
+          const sh1 = swingHighs[swingHighs.length - 1];
+          const sh2 = swingHighs[swingHighs.length - 2];
+          if (Math.abs(sh1.price - sh2.price) <= Math.max(1.8, (rangeHigh - rangeLow) * 0.06)) {
+            eqhPrice = (sh1.price + sh2.price) / 2;
+          }
+        }
+        if (swingLows.length >= 2) {
+          const sl1 = swingLows[swingLows.length - 1];
+          const sl2 = swingLows[swingLows.length - 2];
+          if (Math.abs(sl1.price - sl2.price) <= Math.max(1.8, (rangeHigh - rangeLow) * 0.06)) {
+            eqlPrice = (sl1.price + sl2.price) / 2;
+          }
+        }
+
+        const strongLowLabel = structureBias === 'BULL' ? 'Strong Low (強支撐低點)' : 'Weak Low (弱低點目標)';
+        const strongHighLabel = structureBias === 'BEAR' ? 'Strong High (強阻力高點)' : 'Weak High (弱高點目標)';
+
+        return {
+          swingHighs,
+          swingLows,
+          activeBullOB,
+          activeBearOB,
+          fvgs: fvgs.slice(-3),
+          rangeHigh,
+          rangeLow,
+          eqPct,
+          structureBias,
+          structureLabel,
+          lastSH,
+          lastSL,
+          eqhPrice,
+          eqlPrice,
+          strongLowLabel,
+          strongHighLabel
+        };
+      }
+
+      function calcATR(candles, period = 14) {
+        let sum = 0;
+        const start = Math.max(1, candles.length - period);
+        for (let i = start; i < candles.length; i++) {
+          const c = candles[i];
+          const prev = candles[i - 1].close;
+          const tr = Math.max(c.high - c.low, Math.abs(c.high - prev), Math.abs(c.low - prev));
+          sum += tr;
+        }
+        return sum / Math.min(period, candles.length - 1);
+      }
+
+      // ==================== FULL ANALYSIS & CONFLUENCE SCORING ====================
+      function runAnalysis() {
+        const candles = state.candles;
+        const n = candles.length;
+        const closes = candles.map(c => c.close);
+        const lastCandle = candles[n - 1];
+        const prevCandle = candles[n - 2] || lastCandle;
+        const p = state.params;
+
+        const emaFast = calcEMA(closes, p.emaFast);
+        const emaMid = calcEMA(closes, p.emaMid);
+        const emaSlow = calcEMA(closes, p.emaSlow);
+        const ema4 = calcEMA(closes, p.ema4 || 260);
+        const ema5 = calcEMA(closes, p.ema5 || 544);
+        const bb = calcBollingerBands(closes, p.bbPeriod, p.bbStd);
+        const stoch = calcSlowStochastic(candles, p.stochK, p.stochSmooth, p.stochD);
+        const lrc = calcLinearRegressionChannel(closes, p.lrcPeriod, p.lrcDev);
+        const smc = calcSMC(candles, p.smcSwing);
+        const atr = calcATR(candles, 14);
+
+        // 1. Score SMC (-100 to +100 normalized)
+        let smcRaw = 0;
+        const smcReasons = [];
+        if (smc.structureBias === 'BULL') {
+          smcRaw += 45;
+          smcReasons.push(`結構呈現 ${smc.structureLabel}`);
+        } else if (smc.structureBias === 'BEAR') {
+          smcRaw -= 45;
+          smcReasons.push(`結構呈現 ${smc.structureLabel}`);
+        } else {
+          smcReasons.push('結構處於均衡震盪');
+        }
+
+        if (smc.eqPct < 42) {
+          smcRaw += 35;
+          smcReasons.push(`價格位於折價區 (${smc.eqPct.toFixed(0)}%) 接近看漲 OB [${smc.activeBullOB.bottom.toFixed(1)}-${smc.activeBullOB.top.toFixed(1)}]`);
+        } else if (smc.eqPct > 58) {
+          smcRaw -= 35;
+          smcReasons.push(`價格位於溢價區 (${smc.eqPct.toFixed(0)}%) 接近看跌 OB [${smc.activeBearOB.bottom.toFixed(1)}-${smc.activeBearOB.top.toFixed(1)}]`);
+        } else {
+          smcReasons.push(`價格位於溢價/折價均衡軸 (${smc.eqPct.toFixed(0)}%)`);
+        }
+        smcRaw = Math.max(-100, Math.min(100, smcRaw));
+
+        // 2. Score 5EMA (9 / 34 / 136 / 260 / 544) (-100 to +100)
+        const ef = emaFast[n - 1], em = emaMid[n - 1], es = emaSlow[n - 1], e4 = ema4[n - 1], e5 = ema5[n - 1];
+        let emaRaw = 0;
+        let emaReason = '';
+        if (lastCandle.close > e4 && ef > em && em > es && es >= e4) {
+          emaRaw = 90;
+          emaReason = `5EMA 完美多頭排列 (EMA${p.emaFast} > ${p.emaMid} > ${p.emaSlow} > ${p.ema4} > ${p.ema5})`;
+        } else if (lastCandle.close > es && ef > em) {
+          emaRaw = 60;
+          emaReason = `企穩中期 EMA${p.emaSlow}(${es.toFixed(1)}) 與 EMA${p.ema4}(${e4.toFixed(1)}) 之上，短線 EMA${p.emaFast}>EMA${p.emaMid} 多頭發散`;
+        } else if (lastCandle.close < e4 && ef < em && em < es && es <= e4) {
+          emaRaw = -90;
+          emaReason = `5EMA 完美空頭排列 (EMA${p.emaFast} < ${p.emaMid} < ${p.emaSlow} < ${p.ema4} < ${p.ema5})`;
+        } else if (lastCandle.close < es && ef < em) {
+          emaRaw = -60;
+          emaReason = `受制於 EMA${p.emaSlow}(${es.toFixed(1)}) 與 EMA${p.ema4}(${e4.toFixed(1)}) 之下，短線 EMA${p.emaFast}<EMA${p.emaMid} 空頭排列`;
+        } else {
+          emaRaw = lastCandle.close >= e4 ? 20 : -20;
+          emaReason = `5EMA 短期交錯整理，長線基準 EMA${p.ema4}=${e4.toFixed(1)} / EMA${p.ema5}=${e5.toFixed(1)}`;
+        }
+
+        // 3. Score Bollinger Bands (-100 to +100)
+        const curPctB = bb.pctB[n - 1];
+        const curBW = bb.bandwidth[n - 1];
+        let bbRaw = 0;
+        let bbReason = '';
+        if (curPctB < 0.22) {
+          bbRaw = 80;
+          bbReason = `觸及布林下軌支撐區 (%B=${(curPctB * 100).toFixed(0)}%)，具備下軌反彈優勢`;
+        } else if (curPctB > 0.78) {
+          // Check if strong breakout or rejection
+          if (curBW < 0.85 && lastCandle.close > bb.upper[n - 1]) {
+            bbRaw = 60;
+            bbReason = `布林帶擠壓後向上突破上軌 (%B=${(curPctB * 100).toFixed(0)}%)`;
+          } else {
+            bbRaw = -75;
+            bbReason = `逼近布林上軌壓力區 (%B=${(curPctB * 100).toFixed(0)}%)，短線追高風險大`;
+          }
+        } else if (curPctB >= 0.45 && curPctB <= 0.72 && lastCandle.close > bb.middle[n - 1]) {
+          bbRaw = 40;
+          bbReason = `企穩布林中軌 (${bb.middle[n - 1].toFixed(1)}) 之上運行，帶寬 ${curBW.toFixed(2)}%`;
+        } else {
+          bbRaw = -30;
+          bbReason = `位於布林中軌 (${bb.middle[n - 1].toFixed(1)}) 下方偏弱震盪`;
+        }
+
+        // 4. Score Slow Stochastic (-100 to +100)
+        const kVal = stoch.k[n - 1], dVal = stoch.d[n - 1];
+        const prevK = stoch.k[n - 2] ?? kVal, prevD = stoch.d[n - 2] ?? dVal;
+        let stochRaw = 0;
+        let stochReason = '';
+        const bullCross = kVal > dVal && prevK <= prevD;
+        const bearCross = kVal < dVal && prevK >= prevD;
+
+        if (kVal < 28 && kVal >= dVal) {
+          stochRaw = 90;
+          stochReason = `超賣區黃金交叉轉強 (%K=${kVal.toFixed(1)} / %D=${dVal.toFixed(1)})`;
+        } else if (kVal < 25) {
+          stochRaw = 65;
+          stochReason = `進入深度超賣區 (%K=${kVal.toFixed(1)})，隨時醞釀金叉反彈`;
+        } else if (kVal > 72 && kVal <= dVal) {
+          stochRaw = -90;
+          stochReason = `超買區死亡交叉轉弱 (%K=${kVal.toFixed(1)} / %D=${dVal.toFixed(1)})`;
+        } else if (kVal > 78) {
+          stochRaw = -60;
+          stochReason = `處於高檔超買區 (%K=${kVal.toFixed(1)})，動能漸趨鈍化`;
+        } else if (kVal > dVal) {
+          stochRaw = 40;
+          stochReason = `中軸多頭動能延續 (%K=${kVal.toFixed(1)} > %D=${dVal.toFixed(1)})`;
+        } else {
+          stochRaw = -40;
+          stochReason = `中軸空頭動能回落 (%K=${kVal.toFixed(1)} < %D=${dVal.toFixed(1)})`;
+        }
+
+        // 5. Score Linear Regression Channel (-100 to +100)
+        let lrcRaw = 0;
+        let lrcReason = '';
+        if (lrc.slope > 0 && lrc.zScore < -0.8) {
+          lrcRaw = 90;
+          lrcReason = `回歸斜率向上 (+${lrc.slope.toFixed(2)}) 且回踩下軌 (-${Math.abs(lrc.zScore).toFixed(1)}σ)，順勢低吸佳點`;
+        } else if (lrc.slope > 0 && lrc.zScore <= 0.8) {
+          lrcRaw = 55;
+          lrcReason = `回歸通道穩定上行 (+${lrc.slope.toFixed(2)}/bar)，偏離度 ${lrc.zScore.toFixed(2)}σ`;
+        } else if (lrc.slope < 0 && lrc.zScore > 0.8) {
+          lrcRaw = -90;
+          lrcReason = `回歸斜率向下 (${lrc.slope.toFixed(2)}) 且觸及上軌 (+${lrc.zScore.toFixed(1)}σ)，高勝率放空點`;
+        } else if (lrc.zScore > 1.55) {
+          lrcRaw = -70;
+          lrcReason = `極端偏離回歸上軌 (+${lrc.zScore.toFixed(2)}σ)，面臨統計均值回歸修正`;
+        } else if (lrc.zScore < -1.55) {
+          lrcRaw = 70;
+          lrcReason = `極端偏離回歸下軌 (${lrc.zScore.toFixed(2)}σ)，具備統計均值回歸反彈動能`;
+        } else {
+          lrcRaw = lrc.slope >= 0 ? 20 : -20;
+          lrcReason = `沿線性回歸中軸 (${lrc.midLine[n - 1].toFixed(1)}) 運行，斜率 ${lrc.slope.toFixed(2)}`;
+        }
+
+        // Weighted Master Confluence Score (-100 to +100)
+        const wTotal = state.weights.smc + state.weights.ema + state.weights.bb + state.weights.stoch + state.weights.lrc || 100;
+        const masterScore = Math.round(
+          (smcRaw * state.weights.smc +
+           emaRaw * state.weights.ema +
+           bbRaw * state.weights.bb +
+           stochRaw * state.weights.stoch +
+           lrcRaw * state.weights.lrc) / wTotal
+        );
+
+        // Calculate Actionable CFD Entry, SL, TP1, TP2
+        const isBull = masterScore >= 0;
+        const slDistance = Math.max(4.5, atr * 1.35);
+        const slPrice = isBull
+          ? Math.min(lastCandle.close - slDistance, smc.activeBullOB.bottom - 1.2)
+          : Math.max(lastCandle.close + slDistance, smc.activeBearOB.top + 1.2);
+        const actualRiskPts = Math.min(22, Math.max(4.0, Math.abs(lastCandle.close - slPrice)));
+        const finalSL = isBull ? lastCandle.close - actualRiskPts : lastCandle.close + actualRiskPts;
+        const tp1 = isBull ? lastCandle.close + actualRiskPts * 1.5 : lastCandle.close - actualRiskPts * 1.5;
+        const tp2 = isBull ? lastCandle.close + actualRiskPts * 2.6 : lastCandle.close - actualRiskPts * 2.6;
+
+        state.computed = {
+          emaFast,
+          emaMid,
+          emaSlow,
+          ema4,
+          ema5,
+          bb,
+          stoch,
+          lrc,
+          smc,
+          atr,
+          masterScore,
+          isBull,
+          entryLow: lastCandle.close - atr * 0.25,
+          entryHigh: lastCandle.close + atr * 0.15,
+          sl: finalSL,
+          tp1,
+          tp2,
+          riskPts: actualRiskPts,
+          pillars: [
+            {
+              id: 'smc',
+              name: `LuxAlgo SMC (Internal OB ${p.smcSwing} · EQH/EQL ${p.smcEqBars} · FVG)`,
+              weight: Math.round((state.weights.smc / wTotal) * 100),
+              score: smcRaw,
+              metric: `${smc.structureBias === 'BULL' ? '看漲結構' : smc.structureBias === 'BEAR' ? '看跌結構' : '震盪'} · 區間位階 ${smc.eqPct.toFixed(0)}%`,
+              detail: smcReasons.join('；')
+            },
+            {
+              id: 'ema',
+              name: `5EMA 均線系統 (${p.emaFast}/${p.emaMid}/${p.emaSlow}/${p.ema4}/${p.ema5})`,
+              weight: Math.round((state.weights.ema / wTotal) * 100),
+              score: emaRaw,
+              metric: `${ef.toFixed(1)} / ${em.toFixed(1)} / ${es.toFixed(1)} / ${e4.toFixed(1)} / ${e5.toFixed(1)}`,
+              detail: emaReason
+            },
+            {
+              id: 'lrc',
+              name: `Lin reg channel (${p.lrcPeriod}, ±${p.lrcDev}σ, 皮爾森 R)`,
+              weight: Math.round((state.weights.lrc / wTotal) * 100),
+              score: lrcRaw,
+              metric: `皮爾森 R = ${lrc.pearsonR.toFixed(3)} · 斜率 ${lrc.slope >= 0 ? '+' : ''}${lrc.slope.toFixed(2)} · Z=${lrc.zScore.toFixed(2)}σ`,
+              detail: `${lrcReason}（相關係數 |R|=${Math.abs(lrc.pearsonR).toFixed(2)} ${Math.abs(lrc.pearsonR) >= 0.7 ? '高線性趨勢可靠度' : '通道趨於水平震盪'}）`
+            },
+            {
+              id: 'bb',
+              name: `Bollinger Bands 布林通道 (${p.bbPeriod}, ${p.bbStd})`,
+              weight: Math.round((state.weights.bb / wTotal) * 100),
+              score: bbRaw,
+              metric: `%B = ${(curPctB * 100).toFixed(0)}% · 帶寬 ${curBW.toFixed(2)}%`,
+              detail: bbReason
+            },
+            {
+              id: 'stoch',
+              name: `Slow Stochastic 慢速隨機 (${p.stochK},${p.stochSmooth},${p.stochD})`,
+              weight: Math.round((state.weights.stoch / wTotal) * 100),
+              score: stochRaw,
+              metric: `%K = ${kVal.toFixed(1)} / %D = ${dVal.toFixed(1)}`,
+              detail: stochReason
+            }
+          ]
+        };
+
+        updateDashboardUI();
+        drawCharts();
+      }
+
+      // ==================== UI UPDATERS ====================
+      function updateDashboardUI() {
+        const c = state.computed;
+        const candles = state.candles;
+        const last = candles[candles.length - 1];
+        const first = candles[Math.max(0, candles.length - 50)];
+        const diff = last.close - first.close;
+        const diffPct = (diff / first.close) * 100;
+
+        document.getElementById('headerPrice').textContent = last.close.toFixed(2);
+        const hdrChange = document.getElementById('headerChange');
+        hdrChange.textContent = `${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${diff >= 0 ? '+' : ''}${diffPct.toFixed(2)}%)`;
+        hdrChange.className = `font-mono text-xs font-medium ${diff >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+        document.getElementById('headerAtr').textContent = `${c.atr.toFixed(2)} pts`;
+        document.getElementById('confluenceTimeframeTag').textContent = `${state.timeframe} 週期`;
+
+        // Master Signal Banner
+        const box = document.getElementById('masterSignalBox');
+        const title = document.getElementById('masterSignalTitle');
+        const scoreTxt = document.getElementById('masterScoreText');
+        const gauge = document.getElementById('scoreGaugeFill');
+
+        scoreTxt.innerHTML = `${c.masterScore >= 0 ? '+' : ''}${c.masterScore}<span class="text-xs text-slate-400">/100</span>`;
+
+        if (c.masterScore >= 55) {
+          box.className = 'p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-between mb-3';
+          title.className = 'text-lg sm:text-xl font-bold text-emerald-400 tracking-tight';
+          title.textContent = '強烈看漲共振 · 逢低做多 (STRONG BUY)';
+          gauge.className = 'h-full transition-all duration-300 bg-emerald-500';
+        } else if (c.masterScore >= 20) {
+          box.className = 'p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between mb-3';
+          title.className = 'text-lg sm:text-xl font-bold text-emerald-300 tracking-tight';
+          title.textContent = '偏多震盪 · 等回踩支撐做多 (BUY BIAS)';
+          gauge.className = 'h-full transition-all duration-300 bg-emerald-400';
+        } else if (c.masterScore <= -55) {
+          box.className = 'p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/40 flex items-center justify-between mb-3';
+          title.className = 'text-lg sm:text-xl font-bold text-rose-400 tracking-tight';
+          title.textContent = '強烈看跌共振 · 逢高做空 (STRONG SELL)';
+          gauge.className = 'h-full transition-all duration-300 bg-rose-500';
+        } else if (c.masterScore <= -20) {
+          box.className = 'p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between mb-3';
+          title.className = 'text-lg sm:text-xl font-bold text-rose-300 tracking-tight';
+          title.textContent = '偏空承壓 · 等反彈受阻做空 (SELL BIAS)';
+          gauge.className = 'h-full transition-all duration-300 bg-rose-400';
+        } else {
+          box.className = 'p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between mb-3';
+          title.className = 'text-lg sm:text-xl font-bold text-amber-300 tracking-tight';
+          title.textContent = '多空分歧 · 區間觀望等待突破 (NEUTRAL)';
+          gauge.className = 'h-full transition-all duration-300 bg-amber-400';
+        }
+
+        // Position gauge bar from center 50%
+        const widthPct = Math.min(50, Math.abs(c.masterScore) / 2);
+        if (c.masterScore >= 0) {
+          gauge.style.marginLeft = '50%';
+          gauge.style.width = `${widthPct}%`;
+        } else {
+          gauge.style.marginLeft = `${50 - widthPct}%`;
+          gauge.style.width = `${widthPct}%`;
+        }
+
+        // Update High-Win-Rate Sniper Prompt Banner
+        const sniperBox = document.getElementById('sniperPromptBox');
+        const sniperBadge = document.getElementById('sniperBadge');
+        const sniperWinRate = document.getElementById('sniperWinRateTag');
+        const sniperHeadline = document.getElementById('sniperHeadline');
+        const sniperDetail = document.getElementById('sniperTriggerDetail');
+
+        const lastClose = last.close;
+        const lastKVal = c.stoch.k[candles.length - 1];
+        const lastDVal = c.stoch.d[candles.length - 1];
+        const bullOB = c.smc.activeBullOB;
+        const bearOB = c.smc.activeBearOB;
+
+        // Check if any recent FVG overlaps with Bullish OB or Bearish OB (Unicorn Zone)
+        const bullUnicorn = c.smc.fvgs.find(f => f.type === 'BULL' && f.bottom <= bullOB.top + 3.0 && f.top >= bullOB.bottom - 3.0);
+        const bearUnicorn = c.smc.fvgs.find(f => f.type === 'BEAR' && f.bottom <= bearOB.top + 3.0 && f.top >= bearOB.bottom - 3.0);
+
+        if (c.masterScore >= 55) {
+          sniperBox.className = 'mb-3 p-3 rounded-xl bg-emerald-500/20 border-2 border-emerald-400 space-y-1.5 shadow-lg shadow-emerald-500/10';
+          sniperBadge.className = 'px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-emerald-400 text-slate-950 animate-pulse';
+          sniperBadge.textContent = '🟢 A+ 高勝率做多入場觸發 (BUY NOW)';
+          sniperWinRate.className = 'text-[11px] font-mono font-bold text-emerald-300';
+          sniperWinRate.textContent = bullUnicorn ? '🦄 獨角獸 OB+FVG 重疊共振 (A+ 級)' : '🔥 五維多頭高度共振 (A 級)';
+          sniperHeadline.textContent = `建議現價/回踩 ${c.entryLow.toFixed(1)} ~ ${c.entryHigh.toFixed(1)} 區間進場做多！`;
+          sniperDetail.textContent = `觸發條件已滿足：總分達 +${c.masterScore} 分，順線性回歸軌道與 5EMA 多頭支撐，止損設於 ${c.sl.toFixed(1)}，第一目標看 ${c.tp1.toFixed(1)}。`;
+        } else if (c.masterScore <= -55) {
+          sniperBox.className = 'mb-3 p-3 rounded-xl bg-rose-500/20 border-2 border-rose-400 space-y-1.5 shadow-lg shadow-rose-500/10';
+          sniperBadge.className = 'px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-rose-400 text-slate-950 animate-pulse';
+          sniperBadge.textContent = '🔴 A+ 高勝率做空入場觸發 (SELL NOW)';
+          sniperWinRate.className = 'text-[11px] font-mono font-bold text-rose-300';
+          sniperWinRate.textContent = bearUnicorn ? '🦄 獨角獸 OB+FVG 重疊共振 (A+ 級)' : '❄️ 五維空頭高度共振 (A 級)';
+          sniperHeadline.textContent = `建議現價/反彈 ${c.entryLow.toFixed(1)} ~ ${c.entryHigh.toFixed(1)} 區間進場做空！`;
+          sniperDetail.textContent = `觸發條件已滿足：總分達 ${c.masterScore} 分，受制於下降軌道與看跌 OB 阻力，止損設於 ${c.sl.toFixed(1)}，第一目標看 ${c.tp1.toFixed(1)}。`;
+        } else if (c.lrc.slope < 0 || c.emaFast[candles.length - 1] < c.emaSlow[candles.length - 1]) {
+          // Bearish trend bias -> suggest exact high-win-rate short ambush zone
+          const ambushLow = bearOB.bottom.toFixed(1);
+          const ambushHigh = bearOB.top.toFixed(1);
+          const ambushSL = (bearOB.top + Math.max(2.5, c.atr * 0.6)).toFixed(1);
+          const ambushTP = (bearOB.bottom - c.atr * 2.2).toFixed(1);
+          sniperBox.className = 'mb-3 p-3 rounded-xl bg-amber-500/15 border border-amber-400/50 space-y-1.5';
+          sniperBadge.className = 'px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-amber-400 text-slate-950';
+          sniperBadge.textContent = '⏳ 順勢高勝率埋伏提示 (掛單/等待區)';
+          sniperWinRate.className = 'text-[11px] font-mono font-semibold text-amber-300';
+          sniperWinRate.textContent = '策略: 順下降軌道逢高狙擊做空';
+          sniperHeadline.textContent = `最佳做空狙擊區：等待反彈至 ${ambushLow} ~ ${ambushHigh} (Bearish OB + 軌道壓力)`;
+          sniperDetail.textContent = `目前現價 ${lastClose.toFixed(1)} 處於中間區間（總分 ${c.masterScore}）。高勝率做法：等價格觸及上方紅框 ${ambushLow}~${ambushHigh} 且 SlowStoch > 70 死叉時做空（或跌破 ${bullOB.bottom.toFixed(1)} 追空），止損 ${ambushSL}，目標 ${ambushTP}。`;
+        } else {
+          // Bullish trend bias -> suggest exact high-win-rate long ambush zone
+          const ambushLow = bullOB.bottom.toFixed(1);
+          const ambushHigh = bullOB.top.toFixed(1);
+          const ambushSL = (bullOB.bottom - Math.max(2.5, c.atr * 0.6)).toFixed(1);
+          const ambushTP = (bullOB.top + c.atr * 2.2).toFixed(1);
+          sniperBox.className = 'mb-3 p-3 rounded-xl bg-amber-500/15 border border-amber-400/50 space-y-1.5';
+          sniperBadge.className = 'px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-amber-400 text-slate-950';
+          sniperBadge.textContent = '⏳ 順勢高勝率埋伏提示 (掛單/等待區)';
+          sniperWinRate.className = 'text-[11px] font-mono font-semibold text-amber-300';
+          sniperWinRate.textContent = '策略: 順上升軌道回踩狙擊做多';
+          sniperHeadline.textContent = `最佳做多狙擊區：等待回踩至 ${ambushLow} ~ ${ambushHigh} (Bullish OB + 軌道支撐)`;
+          sniperDetail.textContent = `目前現價 ${lastClose.toFixed(1)} 處於中間區間（總分 ${c.masterScore}）。高勝率做法：等價格回落至下方綠框 ${ambushLow}~${ambushHigh} 且 SlowStoch < 30 金叉時做多，止損 ${ambushSL}，目標 ${ambushTP}。`;
+        }
+
+        // Trade Execution Levels
+        document.getElementById('planEntry').textContent = `${c.entryLow.toFixed(2)} - ${c.entryHigh.toFixed(2)}`;
+        document.getElementById('planSL').textContent = `${c.sl.toFixed(2)} (${c.isBull ? '-' : '+'}${c.riskPts.toFixed(1)} pts)`;
+        document.getElementById('planTP1').textContent = `${c.tp1.toFixed(2)} (${c.isBull ? '+' : '-'}${(c.riskPts * 1.5).toFixed(1)} pts)`;
+        document.getElementById('planTP2').textContent = `${c.tp2.toFixed(2)} (${c.isBull ? '+' : '-'}${(c.riskPts * 2.6).toFixed(1)} pts)`;
+
+        // Slow Stoch Badge
+        const lastK = c.stoch.k[candles.length - 1];
+        const lastD = c.stoch.d[candles.length - 1];
+        const stochBadge = document.getElementById('stochStatusBadge');
+        if (lastK < 25) {
+          stochBadge.textContent = `超賣區 (%K=${lastK.toFixed(1)}, %D=${lastD.toFixed(1)}) · 留意金叉做多`;
+          stochBadge.className = 'font-mono text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+        } else if (lastK > 75) {
+          stochBadge.textContent = `超買區 (%K=${lastK.toFixed(1)}, %D=${lastD.toFixed(1)}) · 留意死叉做空`;
+          stochBadge.className = 'font-mono text-xs px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30';
+        } else {
+          stochBadge.textContent = `中軸區間 (%K=${lastK.toFixed(1)}, %D=${lastD.toFixed(1)})`;
+          stochBadge.className = 'font-mono text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300';
+        }
+
+        // Render 5 Indicator Breakdown Cards
+        const container = document.getElementById('indicatorCardsContainer');
+        container.innerHTML = c.pillars.map(p => {
+          const badgeClass = p.score >= 25
+            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+            : p.score <= -25
+            ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+            : 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+          const badgeLabel = p.score >= 25 ? `看漲 +${p.score}` : p.score <= -25 ? `看跌 ${p.score}` : `中立 ${p.score}`;
+          return `
+            <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800/90 hover:border-slate-700 transition">
+              <div class="flex items-center justify-between gap-2 mb-1">
+                <span class="text-xs font-semibold text-white">${p.name}</span>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[10px] font-mono text-slate-400">權重 ${p.weight}%</span>
+                  <span class="px-2 py-0.5 text-[11px] font-mono font-semibold rounded border ${badgeClass}">${badgeLabel}</span>
+                </div>
+              </div>
+              <div class="text-[11px] font-mono text-amber-400/90 mb-1">${p.metric}</div>
+              <p class="text-xs text-slate-300 leading-snug">${p.detail}</p>
+            </div>
+          `;
+        }).join('');
+
+        // Update Crosshair Readout to latest bar if not hovering
+        const idx = state.hoverIndex !== null ? state.hoverIndex : candles.length - 1;
+        updateCrosshairBar(idx);
+      }
+
+      function updateCrosshairBar(idx) {
+        const candles = state.candles;
+        const c = state.computed;
+        if (!candles[idx] || !c) return;
+        const bar = candles[idx];
+        document.getElementById('infoIndex').textContent = `#${idx + 1}`;
+        document.getElementById('infoOpen').textContent = bar.open.toFixed(2);
+        document.getElementById('infoHigh').textContent = bar.high.toFixed(2);
+        document.getElementById('infoLow').textContent = bar.low.toFixed(2);
+        document.getElementById('infoClose').textContent = bar.close.toFixed(2);
+
+        const bbU = c.bb.upper[idx], bbL = c.bb.lower[idx];
+        document.getElementById('infoBB').textContent = bbU ? `${bbL.toFixed(1)}~${bbU.toFixed(1)}` : '-';
+
+        const e1 = c.emaFast[idx], e2 = c.emaMid[idx], e3 = c.emaSlow[idx], e4 = c.ema4[idx], e5 = c.ema5[idx];
+        document.getElementById('infoEMA').innerHTML = e1
+          ? `<span class="text-[#fde047] font-bold">${e1.toFixed(1)}</span> / <span class="text-[#ef4444] font-bold">${e2.toFixed(1)}</span> / <span class="text-[#3b82f6] font-bold">${e3.toFixed(1)}</span> / <span class="text-[#a855f7] font-bold">${e4.toFixed(1)}</span> / <span class="bg-white text-black px-1 rounded font-bold">${e5.toFixed(1)}</span>`
+          : '-';
+
+        const lrcM = c.lrc.midLine[idx];
+        document.getElementById('infoLRC').textContent = lrcM ? `${c.lrc.lowerLine[idx].toFixed(1)}~${c.lrc.upperLine[idx].toFixed(1)} (R=${c.lrc.pearsonR.toFixed(2)})` : '-';
+
+        const sk = c.stoch.k[idx], sd = c.stoch.d[idx];
+        document.getElementById('infoStoch').textContent = sk !== null ? `${sk.toFixed(1)} / ${sd.toFixed(1)}` : '-';
+      }
+
+      // ==================== INTERACTIVE CANVAS CHART ENGINE ====================
+      function drawCharts() {
+        drawMainChart();
+        drawStochChart();
+      }
+
+      function drawMainChart() {
+        const canvas = document.getElementById('mainChartCanvas');
+        if (!canvas) return;
+        const rect = canvas.parentElement.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+
+        const W = rect.width;
+        const H = rect.height;
+        const padRight = 64;
+        const padLeft = 12;
+        const padTop = 18;
+        const padBottom = 22;
+        const plotW = W - padLeft - padRight;
+        const plotH = H - padTop - padBottom;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, W, H);
+
+        const candles = state.candles;
+        const c = state.computed;
+        const visibleCount = Math.min(85, candles.length);
+        const startIdx = candles.length - visibleCount;
+
+        // Compute Y scale min/max across visible candles & active overlays
+        let minP = Infinity;
+        let maxP = -Infinity;
+        for (let i = startIdx; i < candles.length; i++) {
+          if (candles[i].low < minP) minP = candles[i].low;
+          if (candles[i].high > maxP) maxP = candles[i].high;
+          if (state.layers.bb && c.bb.upper[i]) {
+            if (c.bb.upper[i] > maxP) maxP = c.bb.upper[i];
+            if (c.bb.lower[i] < minP) minP = c.bb.lower[i];
+          }
+          if (state.layers.lrc && c.lrc.upperLine[i]) {
+            if (c.lrc.upperLine[i] > maxP) maxP = c.lrc.upperLine[i];
+            if (c.lrc.lowerLine[i] < minP) minP = c.lrc.lowerLine[i];
+          }
+          if (state.layers.ema && c.emaSlow[i]) {
+            if (c.emaSlow[i] > maxP) maxP = c.emaSlow[i];
+            if (c.emaSlow[i] < minP) minP = c.emaSlow[i];
+          }
+        }
+        if (state.layers.tradeZones) {
+          minP = Math.min(minP, c.sl, c.tp1);
+          maxP = Math.max(maxP, c.sl, c.tp1);
+        }
+
+        const marginP = (maxP - minP) * 0.08 || 5;
+        minP -= marginP;
+        maxP += marginP;
+
+        const xForIndex = (idx) => padLeft + ((idx - startIdx + 0.5) / visibleCount) * plotW;
+        const yForPrice = (p) => padTop + ((maxP - p) / (maxP - minP)) * plotH;
+
+        // 1. Background Grid & Price Axis (White Theme)
+        ctx.strokeStyle = 'rgba(203, 213, 225, 0.7)';
+        ctx.lineWidth = 1;
+        const gridSteps = 6;
+        ctx.font = '10px "JetBrains Mono", monospace';
+        ctx.fillStyle = '#334155';
+        for (let g = 0; g <= gridSteps; g++) {
+          const priceVal = minP + ((maxP - minP) * g) / gridSteps;
+          const y = yForPrice(priceVal);
+          ctx.beginPath();
+          ctx.moveTo(padLeft, y);
+          ctx.lineTo(W - padRight, y);
+          ctx.stroke();
+          ctx.fillText(priceVal.toFixed(1), W - padRight + 6, y + 3);
+        }
+
+        // 2. Layer: SMC Order Blocks, FVG & BOS/CHoCH
+        if (state.layers.smc) {
+          // Bullish OB
+          const bullOB = c.smc.activeBullOB;
+          const yBullTop = yForPrice(bullOB.top);
+          const yBullBot = yForPrice(bullOB.bottom);
+          const xBullStart = Math.max(padLeft, xForIndex(Math.max(startIdx, bullOB.index)));
+          ctx.fillStyle = 'rgba(16, 185, 129, 0.14)';
+          ctx.fillRect(xBullStart, yBullTop, W - padRight - xBullStart, Math.max(4, yBullBot - yBullTop));
+          ctx.strokeStyle = 'rgba(16, 185, 129, 0.6)';
+          ctx.strokeRect(xBullStart, yBullTop, W - padRight - xBullStart, Math.max(4, yBullBot - yBullTop));
+          ctx.fillStyle = '#047857';
+          ctx.fillText('Bullish OB (看漲訂單塊)', xBullStart + 6, yBullTop + 11);
+
+          // Bearish OB
+          const bearOB = c.smc.activeBearOB;
+          const yBearTop = yForPrice(bearOB.top);
+          const yBearBot = yForPrice(bearOB.bottom);
+          const xBearStart = Math.max(padLeft, xForIndex(Math.max(startIdx, bearOB.index)));
+          ctx.fillStyle = 'rgba(244, 63, 94, 0.14)';
+          ctx.fillRect(xBearStart, yBearTop, W - padRight - xBearStart, Math.max(4, yBearBot - yBearTop));
+          ctx.strokeStyle = 'rgba(244, 63, 94, 0.6)';
+          ctx.strokeRect(xBearStart, yBearTop, W - padRight - xBearStart, Math.max(4, yBearBot - yBearTop));
+          ctx.fillStyle = '#be123c';
+          ctx.fillText('Bearish OB (看跌訂單塊)', xBearStart + 6, yBearTop + 11);
+
+          // FVGs
+          c.smc.fvgs.forEach(fvg => {
+            if (fvg.index < startIdx) return;
+            const xFvg = xForIndex(fvg.index);
+            const yTop = yForPrice(fvg.top);
+            const yBot = yForPrice(fvg.bottom);
+            ctx.fillStyle = 'rgba(251, 191, 36, 0.14)';
+            ctx.fillRect(xFvg, yTop, W - padRight - xFvg, Math.max(3, yBot - yTop));
+            ctx.fillStyle = '#b45309';
+            ctx.fillText('FVG', xFvg + 4, yTop + 9);
+          });
+
+          // LuxAlgo Equilibrium Zone (Purple) & Strong/Weak High/Low
+          const eqMid = (c.smc.rangeHigh + c.smc.rangeLow) / 2;
+          const yEq = yForPrice(eqMid);
+          if (yEq >= padTop && yEq <= H - padBottom) {
+            ctx.fillStyle = 'rgba(139, 92, 246, 0.12)';
+            ctx.fillRect(padLeft, yEq - 4, plotW, 8);
+            ctx.fillStyle = '#6d28d9';
+            ctx.fillText('Equilibrium (均衡軸 50%)', padLeft + 6, yEq - 6);
+          }
+
+          // BOS / Strong & Weak High/Low structural line
+          const sh = c.smc.lastSH;
+          if (sh && sh.index >= startIdx) {
+            const x1 = xForIndex(sh.index);
+            const y1 = yForPrice(sh.price);
+            ctx.strokeStyle = '#d97706';
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(W - padRight, y1);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#b45309';
+            ctx.fillText(`BOS / ${c.smc.strongHighLabel}`, x1 + 4, y1 - 4);
+          }
+        }
+
+        // 3. Layer: Linear Regression Channel (100, ±2, Pearson R + 向右延伸線)
+        if (state.layers.lrc) {
+          const lrcStart = Math.max(startIdx, c.lrc.startIdx);
+          if (lrcStart < candles.length - 1) {
+            const x1 = xForIndex(lrcStart);
+            const xRightExt = W - padRight; // 向右延伸線至價格軸邊界
+            const extBars = 3;
+            const lastIdx = candles.length - 1;
+            const extUpper = c.lrc.upperLine[lastIdx] + c.lrc.slope * extBars;
+            const extMid = c.lrc.midLine[lastIdx] + c.lrc.slope * extBars;
+            const extLower = c.lrc.lowerLine[lastIdx] + c.lrc.slope * extBars;
+
+            // TradingView Official Linear Regression Channel Style:
+            // Upper half (Upper to Mid) = Light Blue; Lower half (Mid to Lower) = Light Red/Pink
+            ctx.fillStyle = 'rgba(41, 98, 255, 0.12)';
+            ctx.beginPath();
+            ctx.moveTo(x1, yForPrice(c.lrc.upperLine[lrcStart]));
+            ctx.lineTo(xRightExt, yForPrice(extUpper));
+            ctx.lineTo(xRightExt, yForPrice(extMid));
+            ctx.lineTo(x1, yForPrice(c.lrc.midLine[lrcStart]));
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = 'rgba(255, 82, 82, 0.12)';
+            ctx.beginPath();
+            ctx.moveTo(x1, yForPrice(c.lrc.midLine[lrcStart]));
+            ctx.lineTo(xRightExt, yForPrice(extMid));
+            ctx.lineTo(xRightExt, yForPrice(extLower));
+            ctx.lineTo(x1, yForPrice(c.lrc.lowerLine[lrcStart]));
+            ctx.closePath();
+            ctx.fill();
+
+            // Upper & Lower Channel Borders (TradingView Blue #2962ff, Extended Right)
+            ctx.strokeStyle = '#2962ff';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x1, yForPrice(c.lrc.upperLine[lrcStart]));
+            ctx.lineTo(xRightExt, yForPrice(extUpper));
+            ctx.moveTo(x1, yForPrice(c.lrc.lowerLine[lrcStart]));
+            ctx.lineTo(xRightExt, yForPrice(extLower));
+            ctx.stroke();
+
+            // Base / Middle Regression Line (TradingView Red #ff5252, Extended Right)
+            ctx.strokeStyle = '#ff5252';
+            ctx.lineWidth = 1.3;
+            ctx.beginPath();
+            ctx.moveTo(x1, yForPrice(c.lrc.midLine[lrcStart]));
+            ctx.lineTo(xRightExt, yForPrice(extMid));
+            ctx.stroke();
+
+            // Official Pearson's R label at bottom-left start of lower channel line
+            ctx.fillStyle = '#2962ff';
+            ctx.font = '11px "JetBrains Mono", monospace';
+            ctx.fillText(`${c.lrc.pearsonR.toFixed(10)} (${c.lrc.slope >= 0 ? '上升軌道' : '下降軌道'})`, x1 + 4, yForPrice(c.lrc.lowerLine[lrcStart]) + 13);
+          }
+        }
+
+        // 4. Layer: Bollinger Bands
+        if (state.layers.bb) {
+          ctx.strokeStyle = 'rgba(34, 211, 238, 0.65)';
+          ctx.lineWidth = 1.2;
+          ['upper', 'lower'].forEach(bandKey => {
+            ctx.beginPath();
+            for (let i = startIdx; i < candles.length; i++) {
+              const x = xForIndex(i);
+              const y = yForPrice(c.bb[bandKey][i]);
+              if (i === startIdx) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+          });
+
+          // Fill between BB
+          ctx.fillStyle = 'rgba(34, 211, 238, 0.05)';
+          ctx.beginPath();
+          for (let i = startIdx; i < candles.length; i++) {
+            const x = xForIndex(i);
+            const y = yForPrice(c.bb.upper[i]);
+            if (i === startIdx) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          for (let i = candles.length - 1; i >= startIdx; i--) {
+            ctx.lineTo(xForIndex(i), yForPrice(c.bb.lower[i]));
+          }
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // 5. Layer: 5EMA (9=黃 / 34=紅 / 136=藍 / 260=紫 / 544=黑深灰) + 價格坐標上的標籤
+        if (state.layers.ema) {
+          const emaConfigs = [
+            { arr: c.emaFast, color: '#eab308', textColor: '#0f172a', width: 1.8, label: 'EMA9' },
+            { arr: c.emaMid,  color: '#ef4444', textColor: '#ffffff', width: 1.8, label: 'EMA34' },
+            { arr: c.emaSlow, color: '#2563eb', textColor: '#ffffff', width: 1.9, label: 'EMA136' },
+            { arr: c.ema4,    color: '#7c3aed', textColor: '#ffffff', width: 2.1, label: 'EMA260' },
+            { arr: c.ema5,    color: '#0f172a', textColor: '#ffffff', width: 2.2, label: 'EMA544' }
+          ];
+          emaConfigs.forEach(cfg => {
+            ctx.strokeStyle = cfg.color;
+            ctx.lineWidth = cfg.width;
+            ctx.beginPath();
+            for (let i = startIdx; i < candles.length; i++) {
+              const x = xForIndex(i);
+              const y = yForPrice(cfg.arr[i]);
+              if (i === startIdx) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // 價格坐標上的標籤 (Price Axis Tag)
+            const lastVal = cfg.arr[candles.length - 1];
+            if (lastVal) {
+              const yLast = yForPrice(lastVal);
+              if (yLast >= padTop && yLast <= H - padBottom) {
+                ctx.fillStyle = cfg.color;
+                ctx.fillRect(W - padRight + 2, yLast - 6, padRight - 4, 12);
+                ctx.fillStyle = cfg.textColor;
+                ctx.font = '9px "JetBrains Mono", monospace';
+                ctx.fillText(lastVal.toFixed(1), W - padRight + 5, yLast + 3);
+              }
+            }
+          });
+        }
+
+        // 6. Candlesticks
+        const candleW = Math.max(3, (plotW / visibleCount) * 0.66);
+        for (let i = startIdx; i < candles.length; i++) {
+          const bar = candles[i];
+          const x = xForIndex(i);
+          const isUp = bar.close >= bar.open;
+          const color = isUp ? '#10b981' : '#f43f5e';
+
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(x, yForPrice(bar.high));
+          ctx.lineTo(x, yForPrice(bar.low));
+          ctx.stroke();
+
+          const yTop = yForPrice(Math.max(bar.open, bar.close));
+          const yBot = yForPrice(Math.min(bar.open, bar.close));
+          ctx.fillStyle = color;
+          ctx.fillRect(x - candleW / 2, yTop, candleW, Math.max(1.5, yBot - yTop));
+        }
+
+        // 7. Layer: Trade Execution Lines (Entry, SL, TP1)
+        if (state.layers.tradeZones) {
+          const drawHorizLevel = (price, color, label) => {
+            const y = yForPrice(price);
+            if (y < padTop || y > H - padBottom) return;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.2;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(W - padRight - 170, y);
+            ctx.lineTo(W - padRight, y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = color;
+            ctx.fillText(`${label}: ${price.toFixed(1)}`, W - padRight - 165, y - 4);
+          };
+          drawHorizLevel(c.sl, '#e11d48', 'SL 止損');
+          drawHorizLevel(c.tp1, '#059669', 'TP1 目標');
+
+          // Draw High-Win-Rate Entry Callout Tag on the chart
+          const lastIdx = candles.length - 1;
+          const xLast = xForIndex(lastIdx);
+          const yLast = yForPrice(candles[lastIdx].close);
+          const tagText = c.masterScore >= 55
+            ? `🎯 高勝率做多入場 (${candles[lastIdx].close.toFixed(1)})`
+            : c.masterScore <= -55
+            ? `🎯 高勝率做空入場 (${candles[lastIdx].close.toFixed(1)})`
+            : c.isBull
+            ? `⏳ 建議回踩 ${c.smc.activeBullOB.top.toFixed(1)} 綠框狙擊做多`
+            : `⏳ 建議反彈 ${c.smc.activeBearOB.bottom.toFixed(1)} 紅框狙擊做空`;
+          const tagBg = c.masterScore >= 55 ? '#059669' : c.masterScore <= -55 ? '#e11d48' : '#d97706';
+          ctx.font = 'bold 10px "Noto Sans TC", sans-serif';
+          const tw = ctx.measureText(tagText).width + 12;
+          const tx = Math.max(padLeft + 4, Math.min(xLast - tw - 8, W - padRight - tw - 6));
+          const ty = Math.max(padTop + 14, Math.min(yLast - 18, H - padBottom - 20));
+          ctx.fillStyle = tagBg;
+          ctx.fillRect(tx, ty - 11, tw, 16);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(tagText, tx + 6, ty);
+        }
+
+        // 8. Hover Crosshair
+        if (state.hoverIndex !== null && state.hoverIndex >= startIdx && state.hoverIndex < candles.length) {
+          const hx = xForIndex(state.hoverIndex);
+          ctx.strokeStyle = 'rgba(71, 85, 105, 0.55)';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.moveTo(hx, padTop);
+          ctx.lineTo(hx, H - padBottom);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+
+      function drawStochChart() {
+        const canvas = document.getElementById('stochChartCanvas');
+        if (!canvas) return;
+        const rect = canvas.parentElement.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+
+        const W = rect.width;
+        const H = rect.height;
+        const padRight = 64;
+        const padLeft = 12;
+        const padTop = 10;
+        const padBottom = 14;
+        const plotW = W - padLeft - padRight;
+        const plotH = H - padTop - padBottom;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, W, H);
+
+        const candles = state.candles;
+        const c = state.computed;
+        const visibleCount = Math.min(85, candles.length);
+        const startIdx = candles.length - visibleCount;
+
+        const xForIndex = (idx) => padLeft + ((idx - startIdx + 0.5) / visibleCount) * plotW;
+        const yForVal = (v) => padTop + ((100 - v) / 100) * plotH;
+
+        // Overbought (80) & Oversold (20) Zones
+        const y80 = yForVal(80);
+        const y50 = yForVal(50);
+        const y20 = yForVal(20);
+
+        ctx.fillStyle = 'rgba(244, 63, 94, 0.08)';
+        ctx.fillRect(padLeft, padTop, plotW, y80 - padTop);
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.08)';
+        ctx.fillRect(padLeft, y20, plotW, H - padBottom - y20);
+
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+        ctx.setLineDash([4, 4]);
+        [y80, y50, y20].forEach(y => {
+          ctx.beginPath();
+          ctx.moveTo(padLeft, y);
+          ctx.lineTo(W - padRight, y);
+          ctx.stroke();
+        });
+        ctx.setLineDash([]);
+
+        ctx.font = '10px "JetBrains Mono", monospace';
+        ctx.fillStyle = '#334155';
+        ctx.fillText('80', W - padRight + 6, y80 + 3);
+        ctx.fillText('50', W - padRight + 6, y50 + 3);
+        ctx.fillText('20', W - padRight + 6, y20 + 3);
+
+        // %K Line (Cyan/Blue)
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        for (let i = startIdx; i < candles.length; i++) {
+          const x = xForIndex(i);
+          const y = yForVal(c.stoch.k[i]);
+          if (i === startIdx) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // %D Line (Orange)
+        ctx.strokeStyle = '#fb923c';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let i = startIdx; i < candles.length; i++) {
+          const x = xForIndex(i);
+          const y = yForVal(c.stoch.d[i]);
+          if (i === startIdx) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Crossovers markers
+        for (let i = startIdx + 1; i < candles.length; i++) {
+          const kPrev = c.stoch.k[i - 1], dPrev = c.stoch.d[i - 1];
+          const kCur = c.stoch.k[i], dCur = c.stoch.d[i];
+          if (kPrev <= dPrev && kCur > dCur && kCur < 30) {
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath();
+            ctx.arc(xForIndex(i), yForVal(kCur), 3.5, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (kPrev >= dPrev && kCur < dCur && kCur > 70) {
+            ctx.fillStyle = '#f43f5e';
+            ctx.beginPath();
+            ctx.arc(xForIndex(i), yForVal(kCur), 3.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+
+      // ==================== MANUAL CHECKLIST CALCULATOR ====================
+      function updateManualChecklist() {
+        const form = document.getElementById('manualChecklistForm');
+        if (!form) return;
+        const getVal = (name) => {
+          const el = form.querySelector(`input[name="${name}"]:checked`);
+          return el ? Number(el.value) : 0;
+        };
+        const total =
+          getVal('chk_smc_struct') +
+          getVal('chk_smc_zone') +
+          getVal('chk_ema') +
+          getVal('chk_lrc') +
+          getVal('chk_bb') +
+          getVal('chk_stoch');
+
+        const scoreEl = document.getElementById('manualTotalScore');
+        const verdictEl = document.getElementById('manualVerdictText');
+        const bannerEl = document.getElementById('manualResultBanner');
+        const adviceEl = document.getElementById('manualActionAdvice');
+
+        scoreEl.textContent = `${total >= 0 ? '+' : ''}${total}`;
+
+        if (total >= 70) {
+          bannerEl.className = 'p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-center mb-4';
+          scoreEl.className = 'font-mono text-4xl font-bold text-emerald-400 mb-1';
+          verdictEl.textContent = '🌟 A+ 級高勝率做多共振 (STRONG BUY)';
+          adviceEl.textContent = '五大指標高度協同看漲！價格處於機構折價訂單塊 + 統計通道下軌且 Slow Stoch 動能轉強。建議使用標準風險倉位（1.0%~1.5%）進場做多，止損設於看漲 OB 下緣。';
+        } else if (total >= 35) {
+          bannerEl.className = 'p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-center mb-4';
+          scoreEl.className = 'font-mono text-4xl font-bold text-emerald-300 mb-1';
+          verdictEl.textContent = '📈 B 級偏多共振 (MODERATE BUY)';
+          adviceEl.textContent = '多方佔優但部分指標尚未完全到位。建議採用輕倉（0.5% 風險）分批佈局，或等待 M15 Slow Stoch 完成金叉確認後再進場。';
+        } else if (total <= -70) {
+          bannerEl.className = 'p-4 rounded-xl bg-rose-500/15 border border-rose-500/40 text-center mb-4';
+          scoreEl.className = 'font-mono text-4xl font-bold text-rose-400 mb-1';
+          verdictEl.textContent = '🔥 A+ 級高勝率做空共振 (STRONG SELL)';
+          adviceEl.textContent = '五大指標全面看空共振！價格觸及溢價區看跌 OB 與回歸通道上軌，且隨機指標高檔死叉。建議以標準風險倉位進場放空，止損設於 Bearish OB 上方。';
+        } else if (total <= -35) {
+          bannerEl.className = 'p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-center mb-4';
+          scoreEl.className = 'font-mono text-4xl font-bold text-rose-300 mb-1';
+          verdictEl.textContent = '📉 B 級偏空共振 (MODERATE SELL)';
+          adviceEl.textContent = '空方結構佔優，建議半倉（0.5% 風險）逢高做空，注意下方 EMA200 或線性回歸中軸的階段性支撐減倉。';
+        } else {
+          bannerEl.className = 'p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-center mb-4';
+          scoreEl.className = 'font-mono text-4xl font-bold text-amber-300 mb-1';
+          verdictEl.textContent = '⚖️ 指標訊號衝突 · 建議空手觀望 (WAIT)';
+          adviceEl.textContent = '目前趨勢指標與擺盪指標互相矛盾，處於無明確優勢的垃圾時間。建議耐心等待價格觸及上下通道邊界或 SMC 關鍵訂單塊後再出手。';
+        }
+      }
+
+      // ==================== XAUUSD CFD RISK CALCULATOR (HKD BASE) ====================
+      function updateRiskCalculator() {
+        const fxHkd = 7.80; // 聯繫匯率 1 USD = 7.80 HKD
+        const balanceHkd = Math.max(500, Number(document.getElementById('calcBalance').value) || 78000);
+        const balanceUsd = balanceHkd / fxHkd;
+        const riskPct = Number(document.getElementById('calcRiskPct').value) || 1.0;
+        const leverage = Number(document.getElementById('calcLeverage').value) || 500;
+        const entry = Number(document.getElementById('calcEntry').value) || 2742.5;
+        const sl = Number(document.getElementById('calcSL').value) || 2733.4;
+        const tp = Number(document.getElementById('calcTP').value) || 2762.5;
+        const spread = Math.max(0, Number(document.getElementById('calcSpread').value) || 0.15);
+
+        document.getElementById('calcRiskPctDisplay').textContent = `${riskPct.toFixed(2)}%`;
+        const usdEquivEl = document.getElementById('calcBalanceUsdEquiv');
+        if (usdEquivEl) {
+          usdEquivEl.textContent = `≈ $${balanceUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+        }
+
+        const riskHkdTarget = balanceHkd * (riskPct / 100);
+        const riskUsdTarget = riskHkdTarget / fxHkd;
+        const slDist = Math.max(0.5, Math.abs(entry - sl));
+        const tpDist = Math.max(0.5, Math.abs(tp - entry));
+
+        // 1 Standard Lot XAUUSD = 100 oz -> $1 move = $100 USD (HK$780)
+        const rawLots = riskUsdTarget / (slDist * 100);
+        const lots = Math.max(0.01, Math.round(rawLots * 100) / 100);
+        const ounces = lots * 100;
+
+        const actualRiskUsd = lots * 100 * slDist;
+        const actualRiskHkd = actualRiskUsd * fxHkd;
+        const spreadCostUsd = lots * 100 * spread;
+        const spreadCostHkd = spreadCostUsd * fxHkd;
+        const netRewardUsd = Math.max(0, lots * 100 * tpDist - spreadCostUsd);
+        const netRewardHkd = netRewardUsd * fxHkd;
+        const rr = actualRiskHkd > 0 ? netRewardHkd / actualRiskHkd : 0;
+        const marginRequiredUsd = (ounces * entry) / leverage;
+        const marginRequiredHkd = marginRequiredUsd * fxHkd;
+        const marginPct = (marginRequiredHkd / balanceHkd) * 100;
+
+        document.getElementById('resLots').textContent = `${lots.toFixed(2)} Lots`;
+        document.getElementById('resOunces').textContent = `合約規模: ${ounces.toFixed(1)} 盎司 (oz)`;
+        document.getElementById('resRiskUsd').textContent = `-HK$${actualRiskHkd.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`;
+        document.getElementById('resSlDist').textContent = `止損距離: ${slDist.toFixed(2)} USD (約 -$${actualRiskUsd.toFixed(1)} USD)`;
+        document.getElementById('resRewardUsd').textContent = `+HK$${netRewardHkd.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`;
+        document.getElementById('resRR').textContent = `1 : ${rr.toFixed(2)}`;
+        document.getElementById('resMargin').textContent = `HK$${marginRequiredHkd.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`;
+        document.getElementById('resSpreadCost').textContent = `HK$${spreadCostHkd.toFixed(1)} (約 $${spreadCostUsd.toFixed(2)} USD)`;
+        document.getElementById('resMarginLevel').textContent = `${marginPct.toFixed(2)}% (${marginPct < 15 ? '安全充裕' : '注意倉位'})`;
+        document.getElementById('resPerDollar').textContent = `±HK$${(lots * 100 * fxHkd).toFixed(1)} (±$${(lots * 100).toFixed(2)} USD)`;
+      }
+
+      // ==================== EVENT LISTENERS ====================
+      function switchTab(tabId) {
+        const views = {
+          Dashboard: document.getElementById('viewDashboard'),
+          Pine: document.getElementById('viewPine'),
+          Checklist: document.getElementById('viewChecklist'),
+          RiskCalc: document.getElementById('viewRiskCalc'),
+          Guide: document.getElementById('viewGuide')
+        };
+        const btns = {
+          Dashboard: document.getElementById('tabBtnDashboard'),
+          Pine: document.getElementById('tabBtnPine'),
+          Checklist: document.getElementById('tabBtnChecklist'),
+          RiskCalc: document.getElementById('tabBtnRiskCalc'),
+          Guide: document.getElementById('tabBtnGuide')
+        };
+        Object.keys(views).forEach(k => {
+          if (k === tabId) {
+            views[k].classList.remove('hidden');
+            btns[k].className = 'px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-amber-500 text-slate-950 font-semibold';
+          } else {
+            views[k].classList.add('hidden');
+            btns[k].className = 'px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white';
+          }
+        });
+        if (tabId === 'Dashboard') {
+          setTimeout(drawCharts, 30);
+        }
+      }
+
+      document.getElementById('tabBtnDashboard').addEventListener('click', () => switchTab('Dashboard'));
+      document.getElementById('tabBtnPine').addEventListener('click', () => switchTab('Pine'));
+      document.getElementById('tabBtnChecklist').addEventListener('click', () => switchTab('Checklist'));
+      document.getElementById('tabBtnRiskCalc').addEventListener('click', () => switchTab('RiskCalc'));
+      document.getElementById('tabBtnGuide').addEventListener('click', () => switchTab('Guide'));
+
+      // Timeframe buttons
+      document.querySelectorAll('.tf-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.timeframe = btn.getAttribute('data-tf');
+          document.querySelectorAll('.tf-btn').forEach(b => {
+            b.className = 'tf-btn px-2.5 py-1 rounded-md text-xs font-mono font-medium text-slate-400 hover:text-slate-200';
+          });
+          btn.className = 'tf-btn px-2.5 py-1 rounded-md text-xs font-mono font-medium bg-amber-500/20 text-amber-300 border border-amber-500/40';
+          if (state.isLiveFeed) {
+            fetchLiveGoldCandles();
+          } else {
+            state.rawBaseCandles = generateScenarioCandles(state.scenario, state.timeframe);
+            state.candles = applyBrokerOffsetToCandles(state.rawBaseCandles, state.brokerOffset);
+            runAnalysis();
+          }
+        });
+      });
+
+      // Scenario select
+      document.getElementById('scenarioSelect').addEventListener('change', (e) => {
+        state.isLiveFeed = false;
+        state.scenario = e.target.value;
+        document.getElementById('feedStatusDot').className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+        document.getElementById('feedStatusText').textContent = 'XAU/USD 報價源: 模擬劇本';
+        document.getElementById('feedStatusText').className = 'text-[10px] uppercase tracking-wider text-slate-400';
+        state.rawBaseCandles = generateScenarioCandles(state.scenario, state.timeframe);
+        state.candles = applyBrokerOffsetToCandles(state.rawBaseCandles, state.brokerOffset);
+        runAnalysis();
+      });
+
+      // Step Next Candle
+      function stepNextCandle() {
+        const candles = state.candles;
+        const last = candles[candles.length - 1];
+        const atr = state.computed ? state.computed.atr : 4.5;
+        const bias = state.computed ? (state.computed.masterScore / 200) : 0.1;
+        const delta = (Math.random() - 0.48 + bias * 0.15) * atr * 0.65;
+        const open = last.close;
+        const close = Number((open + delta).toFixed(2));
+        const high = Number((Math.max(open, close) + Math.random() * atr * 0.4).toFixed(2));
+        const low = Number((Math.min(open, close) - Math.random() * atr * 0.4).toFixed(2));
+        candles.push({ index: candles.length, open, high, low, close });
+        if (candles.length > 260) candles.shift();
+        runAnalysis();
+      }
+
+      document.getElementById('btnSimStep').addEventListener('click', stepNextCandle);
+
+      // Auto Play Live Tick Simulation
+      document.getElementById('btnAutoPlay').addEventListener('click', () => {
+        const icon = document.getElementById('autoPlayIcon');
+        const txt = document.getElementById('autoPlayText');
+        if (state.autoPlayTimer) {
+          clearInterval(state.autoPlayTimer);
+          state.autoPlayTimer = null;
+          icon.textContent = '▶️';
+          txt.textContent = '模擬即時跳動';
+        } else {
+          state.autoPlayTimer = setInterval(stepNextCandle, 1200);
+          icon.textContent = '⏸️';
+          txt.textContent = '暫停模擬';
+        }
+      });
+
+      // Layer Toggles
+      const layerMap = {
+        toggleSMC: 'smc',
+        toggleBB: 'bb',
+        toggleEMA: 'ema',
+        toggleLRC: 'lrc',
+        toggleTradeZones: 'tradeZones'
+      };
+      Object.keys(layerMap).forEach(id => {
+        document.getElementById(id).addEventListener('change', (e) => {
+          state.layers[layerMap[id]] = e.target.checked;
+          drawCharts();
+        });
+      });
+
+      // Parameter & Weight Inputs
+      const paramInputs = [
+        'paramSmcSwing', 'paramSmcEqBars', 'paramEmaFast', 'paramEmaMid', 'paramEmaSlow', 'paramEma4', 'paramEma5',
+        'paramBbPeriod', 'paramBbStd', 'paramStochK', 'paramStochSmooth',
+        'paramStochD', 'paramLrcPeriod', 'paramLrcDev',
+        'weightSmc', 'weightEma', 'weightBb', 'weightStoch', 'weightLrc'
+      ];
+      paramInputs.forEach(id => {
+        document.getElementById(id).addEventListener('input', () => {
+          state.params.smcSwing = Math.max(2, Number(document.getElementById('paramSmcSwing').value) || 5);
+          state.params.smcEqBars = Math.max(1, Number(document.getElementById('paramSmcEqBars').value) || 3);
+          state.params.emaFast = Math.max(2, Number(document.getElementById('paramEmaFast').value) || 9);
+          state.params.emaMid = Math.max(5, Number(document.getElementById('paramEmaMid').value) || 34);
+          state.params.emaSlow = Math.max(20, Number(document.getElementById('paramEmaSlow').value) || 136);
+          state.params.ema4 = Math.max(50, Number(document.getElementById('paramEma4').value) || 260);
+          state.params.ema5 = Math.max(100, Number(document.getElementById('paramEma5').value) || 544);
+          state.params.bbPeriod = Math.max(5, Number(document.getElementById('paramBbPeriod').value) || 20);
+          state.params.bbStd = Math.max(0.5, Number(document.getElementById('paramBbStd').value) || 2.0);
+          state.params.stochK = Math.max(3, Number(document.getElementById('paramStochK').value) || 14);
+          state.params.stochSmooth = Math.max(1, Number(document.getElementById('paramStochSmooth').value) || 3);
+          state.params.stochD = Math.max(1, Number(document.getElementById('paramStochD').value) || 3);
+          state.params.lrcPeriod = Math.max(20, Number(document.getElementById('paramLrcPeriod').value) || 100);
+          state.params.lrcDev = Math.max(0.5, Number(document.getElementById('paramLrcDev').value) || 2.0);
+
+          state.weights.smc = Number(document.getElementById('weightSmc').value) || 30;
+          state.weights.ema = Number(document.getElementById('weightEma').value) || 20;
+          state.weights.bb = Number(document.getElementById('weightBb').value) || 15;
+          state.weights.stoch = Number(document.getElementById('weightStoch').value) || 15;
+          state.weights.lrc = Number(document.getElementById('weightLrc').value) || 20;
+
+          document.getElementById('weightSmcLabel').textContent = `${state.weights.smc}%`;
+          document.getElementById('weightEmaLabel').textContent = `${state.weights.ema}%`;
+          document.getElementById('weightBbLabel').textContent = `${state.weights.bb}%`;
+          document.getElementById('weightStochLabel').textContent = `${state.weights.stoch}%`;
+          document.getElementById('weightLrcLabel').textContent = `${state.weights.lrc}%`;
+
+          runAnalysis();
+        });
+      });
+
+      document.getElementById('btnResetParams').addEventListener('click', () => {
+        document.getElementById('paramSmcSwing').value = 5;
+        document.getElementById('paramSmcEqBars').value = 3;
+        document.getElementById('paramEmaFast').value = 9;
+        document.getElementById('paramEmaMid').value = 34;
+        document.getElementById('paramEmaSlow').value = 136;
+        document.getElementById('paramEma4').value = 260;
+        document.getElementById('paramEma5').value = 544;
+        document.getElementById('paramBbPeriod').value = 20;
+        document.getElementById('paramBbStd').value = 2.0;
+        document.getElementById('paramStochK').value = 14;
+        document.getElementById('paramStochSmooth').value = 3;
+        document.getElementById('paramStochD').value = 3;
+        document.getElementById('paramLrcPeriod').value = 100;
+        document.getElementById('paramLrcDev').value = 2.0;
+        document.getElementById('weightSmc').value = 30;
+        document.getElementById('weightEma').value = 20;
+        document.getElementById('weightBb').value = 15;
+        document.getElementById('weightStoch').value = 15;
+        document.getElementById('weightLrc').value = 20;
+        document.getElementById('paramSmcSwing').dispatchEvent(new Event('input'));
+      });
+
+      // Sync levels to CFD Risk Calculator
+      document.getElementById('btnSyncToRiskCalc').addEventListener('click', () => {
+        const c = state.computed;
+        const last = state.candles[state.candles.length - 1].close;
+        document.getElementById('calcDirection').value = c.isBull ? 'BUY' : 'SELL';
+        document.getElementById('calcEntry').value = last.toFixed(2);
+        document.getElementById('calcSL').value = c.sl.toFixed(2);
+        document.getElementById('calcTP').value = c.tp1.toFixed(2);
+        updateRiskCalculator();
+        switchTab('RiskCalc');
+      });
+
+      // Canvas Crosshair Hover
+      const mainCanvas = document.getElementById('mainChartCanvas');
+      mainCanvas.addEventListener('mousemove', (e) => {
+        const rect = mainCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const padLeft = 12, padRight = 64;
+        const plotW = rect.width - padLeft - padRight;
+        const visibleCount = Math.min(85, state.candles.length);
+        const startIdx = state.candles.length - visibleCount;
+        const rel = Math.floor(((x - padLeft) / plotW) * visibleCount);
+        if (rel >= 0 && rel < visibleCount) {
+          state.hoverIndex = startIdx + rel;
+          updateCrosshairBar(state.hoverIndex);
+          drawMainChart();
+        }
+      });
+      mainCanvas.addEventListener('mouseleave', () => {
+        state.hoverIndex = null;
+        updateCrosshairBar(state.candles.length - 1);
+        drawMainChart();
+      });
+
+      // Manual Checklist Listeners
+      document.getElementById('manualChecklistForm').addEventListener('change', updateManualChecklist);
+      document.getElementById('btnResetChecklist').addEventListener('click', () => {
+        document.querySelectorAll('#manualChecklistForm input[value="0"]').forEach(r => { r.checked = true; });
+        updateManualChecklist();
+      });
+
+      // CFD Risk Calculator Listeners
+      ['calcBalance', 'calcRiskPct', 'calcDirection', 'calcLeverage', 'calcEntry', 'calcSL', 'calcTP', 'calcSpread'].forEach(id => {
+        document.getElementById(id).addEventListener('input', updateRiskCalculator);
+      });
+
+      // Custom CSV Modal Listeners
+      const modal = document.getElementById('dataModal');
+      document.getElementById('btnOpenDataModal').addEventListener('click', () => modal.classList.remove('hidden'));
+      document.getElementById('btnCloseDataModal').addEventListener('click', () => modal.classList.add('hidden'));
+      document.getElementById('btnCancelDataModal').addEventListener('click', () => modal.classList.add('hidden'));
+
+      document.getElementById('btnFillSampleCsv').addEventListener('click', () => {
+        const sample = generateScenarioCandles('liquidity_sweep', 'H1').slice(-65);
+        document.getElementById('customCsvInput').value = sample
+          .map(c => `${c.open}, ${c.high}, ${c.low}, ${c.close}`)
+          .join('\n');
+      });
+
+      document.getElementById('btnApplyCustomCsv').addEventListener('click', () => {
+        const raw = document.getElementById('customCsvInput').value.trim();
+        const errEl = document.getElementById('customDataError');
+        const lines = raw.split(/\r?\n/).filter(l => l.trim().length > 0);
+        const parsed = [];
+        lines.forEach((line, idx) => {
+          const nums = line.split(/[,;\s\t]+/).map(Number).filter(n => !isNaN(n) && n > 100);
+          if (nums.length >= 4) {
+            parsed.push({
+              index: idx,
+              open: nums[0],
+              high: nums[1],
+              low: nums[2],
+              close: nums[3]
+            });
+          }
+        });
+        if (parsed.length < 30) {
+          errEl.textContent = '請至少提供 30 根有效的 XAUUSD OHLC K線數據（每行包含 Open, High, Low, Close）。';
+          errEl.classList.remove('hidden');
+          return;
+        }
+        errEl.classList.add('hidden');
+        state.candles = parsed;
+        modal.classList.add('hidden');
+        runAnalysis();
+      });
+
+      window.addEventListener('resize', () => {
+        drawCharts();
+      });
+
+      // ==================== LIVE XAUUSD MARKET DATA FETCHER ====================
+      function applyBrokerOffsetToCandles(baseCandles, offset) {
+        return baseCandles.map((c, idx) => ({
+          index: idx,
+          open: Number((c.open + offset).toFixed(2)),
+          high: Number((c.high + offset).toFixed(2)),
+          low: Number((c.low + offset).toFixed(2)),
+          close: Number((c.close + offset).toFixed(2))
+        }));
+      }
+
+      async function fetchLiveGoldCandles() {
+        const btnIcon = document.getElementById('liveGoldIcon');
+        const btnText = document.getElementById('liveGoldText');
+        const statusDot = document.getElementById('feedStatusDot');
+        const statusText = document.getElementById('feedStatusText');
+
+        btnIcon.textContent = '⏳';
+        btnText.textContent = '正在同步全球金價...';
+
+        const tfMap = { M5: '5m', M15: '15m', M30: '30m', H1: '1h', H4: '4h', D1: '1d' };
+        const interval = tfMap[state.timeframe] || '15m';
+
+        try {
+          // 1. Fetch real 1:1 Gold-backed OHLCV klines from public CORS-enabled Binance API (PAXGUSDT tracks London Spot XAUUSD)
+          const klineUrl = `https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=${interval}&limit=560`;
+          const res = await fetch(klineUrl);
+          if (!res.ok) throw new Error('Kline API HTTP ' + res.status);
+          const data = await res.json();
+
+          if (!Array.isArray(data) || data.length < 30) {
+            throw new Error('Invalid kline payload');
+          }
+
+          // Optional: Also check spot XAU price from open exchange API to calibrate any minor basis between PAXG and Spot XAUUSD
+          let spotXau = null;
+          try {
+            const spotRes = await fetch('https://api.gold-api.com/price/XAU');
+            if (spotRes.ok) {
+              const spotJson = await spotRes.json();
+              if (spotJson && spotJson.price > 1500) spotXau = Number(spotJson.price);
+            }
+          } catch (_) {
+            // Fallback to PAXG close directly if secondary spot endpoint is blocked
+          }
+
+          const rawCandles = data.map((row, idx) => ({
+            index: idx,
+            open: parseFloat(row[1]),
+            high: parseFloat(row[2]),
+            low: parseFloat(row[3]),
+            close: parseFloat(row[4])
+          }));
+
+          // Align basis if spotXau returned a valid London Spot reference
+          const lastPaxg = rawCandles[rawCandles.length - 1].close;
+          const basisDiff = spotXau ? (spotXau - lastPaxg) : 0;
+
+          state.rawBaseCandles = rawCandles.map((c, idx) => ({
+            index: idx,
+            open: Number((c.open + basisDiff).toFixed(2)),
+            high: Number((c.high + basisDiff).toFixed(2)),
+            low: Number((c.low + basisDiff).toFixed(2)),
+            close: Number((c.close + basisDiff).toFixed(2))
+          }));
+
+          state.isLiveFeed = true;
+          state.candles = applyBrokerOffsetToCandles(state.rawBaseCandles, state.brokerOffset);
+          runAnalysis();
+
+          const nowStr = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+          statusDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
+          statusText.textContent = `即時連線中 (${nowStr} 更新)`;
+          statusText.className = 'text-[10px] uppercase tracking-wider text-emerald-400 font-semibold';
+          btnIcon.textContent = '✅';
+          btnText.textContent = '已同步即時金價 (點擊刷新)';
+        } catch (err) {
+          statusDot.className = 'w-2 h-2 rounded-full bg-rose-400';
+          statusText.textContent = '即時 API 受防火牆限制 · 可用 TV 視窗或 CSV';
+          statusText.className = 'text-[10px] uppercase tracking-wider text-rose-400';
+          btnIcon.textContent = '⚠️';
+          btnText.textContent = '重試即時報價連線';
+        }
+      }
+
+      document.getElementById('btnFetchLiveGold').addEventListener('click', fetchLiveGoldCandles);
+
+      // Broker Offset Calibration Input & Direct Vantage Price Lock
+      document.getElementById('brokerOffsetInput').addEventListener('input', (e) => {
+        state.brokerOffset = parseFloat(e.target.value) || 0;
+        if (state.rawBaseCandles.length > 0) {
+          state.candles = applyBrokerOffsetToCandles(state.rawBaseCandles, state.brokerOffset);
+          runAnalysis();
+        }
+      });
+
+      document.getElementById('vantageTargetPriceInput').addEventListener('input', (e) => {
+        const targetPrice = parseFloat(e.target.value);
+        if (!isNaN(targetPrice) && targetPrice > 1500 && state.rawBaseCandles.length > 0) {
+          const baseClose = state.rawBaseCandles[state.rawBaseCandles.length - 1].close;
+          const computedOffset = Number((targetPrice - baseClose).toFixed(2));
+          state.brokerOffset = computedOffset;
+          document.getElementById('brokerOffsetInput').value = computedOffset.toFixed(2);
+          state.candles = applyBrokerOffsetToCandles(state.rawBaseCandles, state.brokerOffset);
+          document.getElementById('feedStatusText').textContent = `已鎖定對齊 Vantage 報價 (${targetPrice.toFixed(2)})`;
+          document.getElementById('feedStatusText').className = 'text-[10px] uppercase tracking-wider text-amber-300 font-semibold';
+          runAnalysis();
+        }
+      });
+
+      // Copy Pine Script Button
+      document.getElementById('btnCopyPineScript').addEventListener('click', () => {
+        const code = document.getElementById('pineScriptCodeBlock').textContent;
+        const copyIcon = document.getElementById('copyPineIcon');
+        const copyText = document.getElementById('copyPineText');
+
+        const markCopied = () => {
+          copyIcon.textContent = '✅';
+          copyText.textContent = '已複製！請貼入 TradingView Pine 編輯器';
+          setTimeout(() => {
+            copyIcon.textContent = '📋';
+            copyText.textContent = '一鍵複製 Pine Script 代碼';
+          }, 3000);
+        };
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(code).then(markCopied).catch(() => {
+            const ta = document.createElement('textarea');
+            ta.value = code;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            markCopied();
+          });
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = code;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          markCopied();
+        }
+      });
+
+      // Load Official TradingView Live XAUUSD Widget on demand (Locked to VANTAGE:XAUUSD by default)
+      function loadTvWidget() {
+        const container = document.getElementById('tvWidgetContainer');
+        const symSelect = document.getElementById('tvBrokerSymbolSelect');
+        const selectedSymbol = symSelect ? symSelect.value : 'VANTAGE:XAUUSD';
+        const tfMap = { M5: '5', M15: '15', M30: '30', H1: '60', H4: '240', D1: 'D' };
+        const tvInterval = tfMap[state.timeframe] || '15';
+        const widgetConfig = {
+          autosize: true,
+          symbol: selectedSymbol,
+          interval: tvInterval,
+          timezone: 'Asia/Hong_Kong',
+          theme: 'light',
+          style: '1',
+          locale: 'zh_TW',
+          enable_publishing: false,
+          hide_top_toolbar: false,
+          save_image: false,
+          studies: [
+            'BB@tv-basicstudies',
+            'Stochastic@tv-basicstudies',
+            'MAExp@tv-basicstudies'
+          ]
+        };
+        const encoded = encodeURIComponent(JSON.stringify(widgetConfig));
+        const encodedSym = encodeURIComponent(selectedSymbol);
+        container.innerHTML = `<iframe src="https://s.tradingview.com/widgetembed/?frameElementId=tv_embed&symbol=${encodedSym}&interval=${tvInterval}&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=f8fafc&studies=BB%40tv-basicstudies%1FStochastic%40tv-basicstudies&theme=light&style=1&timezone=Asia%2FHong_Kong&withdateranges=1&showpopupbutton=1&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=zh_TW#${encoded}" class="w-full h-full border-0" allowfullscreen></iframe>`;
+      }
+
+      document.getElementById('btnLoadTvWidget').addEventListener('click', loadTvWidget);
+      document.getElementById('tvBrokerSymbolSelect').addEventListener('change', loadTvWidget);
+
+      // Initialize App
+      state.rawBaseCandles = generateScenarioCandles(state.scenario, state.timeframe);
+      state.candles = applyBrokerOffsetToCandles(state.rawBaseCandles, state.brokerOffset);
+      runAnalysis();
+      updateManualChecklist();
+      updateRiskCalculator();
+      // Proactively attempt live gold fetch and load white TradingView widget on startup
+      fetchLiveGoldCandles();
+      loadTvWidget();
+    })();
+  </script>
+</body>
+</html>
